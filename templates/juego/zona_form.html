@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if zona %}Editar Zona{% else %}Crear Zona{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1>{% if zona %}Editar Zona{% else %}Crear Nueva Zona{% endif %}</h1>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        <strong>Errores en el formulario:</strong>
+                        <ul>
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}
+                        <div class="invalid-feedback d-block">{{ form.nombre.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+                        {{ form.descripcion }}
+                        {% if form.descripcion.errors %}
+                        <div class="invalid-feedback d-block">{{ form.descripcion.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.nivel.id_for_label }}" class="form-label">{{ form.nivel.label }}</label>
+                            {{ form.nivel }}
+                            {% if form.nivel.errors %}
+                            <div class="invalid-feedback d-block">{{ form.nivel.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.dificultad.id_for_label }}" class="form-label">{{ form.dificultad.label }}</label>
+                            {{ form.dificultad }}
+                            {% if form.dificultad.errors %}
+                            <div class="invalid-feedback d-block">{{ form.dificultad.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        {{ form.activa }}
+                        <label class="form-check-label" for="{{ form.activa.id_for_label }}">{{ form.activa.label }}</label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/juego/zonas/" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">{% if zona %}Actualizar{% else %}Crear{% endif %} Zona</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

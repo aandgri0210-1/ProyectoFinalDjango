@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Zona{% endblock %}
+
+{% block content %}
+<!-- Paso a paso: contenido pendiente -->
+    <h1>Eliminar Zona</h1>
+    <p>¿Estas seguro de qude deseas eliminar la zona <strong> {{ zona.nombre }}</strong>?</p>
+    <p>Esta acción no se puede deshacer.</p>
+
+    <form method="post">
+    {% csrf_token %}
+    <button type="submit">Si, eliminar</button>
+    <a href="/juego/zonas/">Cancelar</a>
+
+    </form>
+{% endblock %}

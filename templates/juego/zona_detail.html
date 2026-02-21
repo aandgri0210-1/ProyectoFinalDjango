@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ zona.nombre }} - Detalle{% endblock %}
+
+{% block content %}
+<h1>{{ zona.nombre }}</h1>
+<p><strong>Nivel:</strong> {{ zona.nivel }}</p>
+<p><strong>Dificultad:</strong> {{ zona.get_dificultad_display }}</p>
+<p><strong>Descripción:</strong> {{ zona.descripcion }}</p>
+<p><strong>Activa:</strong> {% if zona.activa %}Sí{% else %}No{% endif %}</p>
+<a href="/juego/zonas/">Volver al listado</a>
+{% endblock %}

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listado de Zonas</title>
+</head>
+<body>
+    <h1>Listado de Zonas</h1>
+
+    <ul>
+        {% for zona in zonas %}
+            <li>
+                <strong>{{ zona.nombre }}</strong>
+                (Nivel {{ zona.nivel }}) -
+                {{ zona.get_dificultad_display }}
+            </li>
+        {% empty %}
+            <li>No hay zonas registradas</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

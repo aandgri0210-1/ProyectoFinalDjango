@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Enemigos{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1> Enemigos del Mundo</h1>
+        <p class="text-muted">Total: {{ stats.total_enemigos }} | Jefes: {{ stats.total_jefes }} | EXP Promedio: {{ stats.exp_promedio|floatformat:0 }}</p>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if is_game_master %}
+        <a href="/juego/enemigos/crear/" class="btn btn-primary">+ Crear Enemigo</a>
+        <a href="/juego/buscar/" class="btn btn-outline-primary"> Búsqueda Avanzada</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Filtrado Rápido</h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="id_zona" class="form-label">Zona</label>
+                {{ form.zona }}
+            </div>
+            <div class="col-md-3">
+                <label for="id_tipo" class="form-label">Tipo</label>
+                <select name="tipo" multiple class="form-control">
+                    <option value="">Todos</option>
+                    <option value="normal">Normal</option>
+                    <option value="elite">Élite</option>
+                    <option value="jefe">Jefe Final</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="id_rareza" class="form-label">Rareza</label>
+                <select name="rareza" multiple class="form-control">
+                    <option value="">Todos</option>
+                    <option value="comun">Común</option>
+                    <option value="raro">Raro</option>
+                    <option value="epico">Épico</option>
+                    <option value="legendario">Legendario</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Zona</th>
+                <th>Tipo</th>
+                <th>Rareza</th>
+                <th>Vida</th>
+                <th>EXP</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for enemigo in enemigos %}
+            <tr>
+                <td><strong>{{ enemigo.nombre }}</strong></td>
+                <td>{{ enemigo.zona.nombre }}</td>
+                <td><span class="badge bg-info">{{ enemigo.get_tipo_display }}</span></td>
+                <td>
+                    <span class="badge" style="background: {% if enemigo.rareza == 'legendario' %}#ffd700{% elif enemigo.rareza == 'epico' %}#c060ff{% elif enemigo.rareza == 'raro' %}#60a0ff{% else %}#808080{% endif %}">
+                        {{ enemigo.get_rareza_display }}
+                    </span>
+                </td>
+                <td>{{ enemigo.vida_maxima }}</td>
+                <td>{{ enemigo.exp_otorgada }}</td>
+                <td>{% if enemigo.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-danger">Inactivo</span>{% endif %}</td>
+                <td>
+                    <a href="/juego/enemigos/{{ enemigo.id }}/" class="btn btn-xs btn-outline-info">Ver</a>
+                    {% if is_game_master %}
+                    <a href="/juego/enemigos/{{ enemigo.id }}/editar/" class="btn btn-xs btn-outline-warning">Editar</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted">No hay enemigos que coincidan con los filtros.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1">Primera</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

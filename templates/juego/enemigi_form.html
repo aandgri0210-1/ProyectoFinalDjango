@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if enemigo %}Editar Enemigo{% else %}Crear Enemigo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1>{% if enemigo %}✏️ Editar Enemigo{% else %}➕ Crear Nuevo Enemigo{% endif %}</h1>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        <strong>Errores en el formulario:</strong>
+                        <ul>
+                            {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}
+                        <div class="invalid-feedback d-block">{{ form.nombre.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.zona.id_for_label }}" class="form-label">{{ form.zona.label }}</label>
+                        {{ form.zona }}
+                        {% if form.zona.errors %}
+                        <div class="invalid-feedback d-block">{{ form.zona.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.tipo.id_for_label }}" class="form-label">{{ form.tipo.label }}</label>
+                            {{ form.tipo }}
+                            {% if form.tipo.errors %}
+                            <div class="invalid-feedback d-block">{{ form.tipo.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.rareza.id_for_label }}" class="form-label">{{ form.rareza.label }}</label>
+                            {{ form.rareza }}
+                            {% if form.rareza.errors %}
+                            <div class="invalid-feedback d-block">{{ form.rareza.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+                        {{ form.descripcion }}
+                        {% if form.descripcion.errors %}
+                        <div class="invalid-feedback d-block">{{ form.descripcion.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <h5 class="mt-4 mb-3">Estadísticas</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.vida_maxima.id_for_label }}" class="form-label">{{ form.vida_maxima.label }}</label>
+                            {{ form.vida_maxima }}
+                            {% if form.vida_maxima.errors %}
+                            <div class="invalid-feedback d-block">{{ form.vida_maxima.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.ataque.id_for_label }}" class="form-label">{{ form.ataque.label }}</label>
+                            {{ form.ataque }}
+                            {% if form.ataque.errors %}
+                            <div class="invalid-feedback d-block">{{ form.ataque.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.defensa.id_for_label }}" class="form-label">{{ form.defensa.label }}</label>
+                            {{ form.defensa }}
+                            {% if form.defensa.errors %}
+                            <div class="invalid-feedback d-block">{{ form.defensa.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.velocidad.id_for_label }}" class="form-label">{{ form.velocidad.label }}</label>
+                            {{ form.velocidad }}
+                            {% if form.velocidad.errors %}
+                            <div class="invalid-feedback d-block">{{ form.velocidad.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <h5 class="mt-4 mb-3">Recompensas</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.exp_otorgada.id_for_label }}" class="form-label">{{ form.exp_otorgada.label }}</label>
+                            {{ form.exp_otorgada }}
+                            {% if form.exp_otorgada.errors %}
+                            <div class="invalid-feedback d-block">{{ form.exp_otorgada.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.oro_otorgado.id_for_label }}" class="form-label">{{ form.oro_otorgado.label }}</label>
+                            {{ form.oro_otorgado }}
+                            {% if form.oro_otorgado.errors %}
+                            <div class="invalid-feedback d-block">{{ form.oro_otorgado.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        {{ form.activo }}
+                        <label class="form-check-label" for="{{ form.activo.id_for_label }}">{{ form.activo.label }}</label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/juego/enemigos/" class="btn btn-secondary">Cancelar</a>
+                        <button type="submit" class="btn btn-primary">{% if enemigo %}Actualizar{% else %}Crear{% endif %} Enemigo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

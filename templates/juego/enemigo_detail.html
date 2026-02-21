@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ enemigo.nombre }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>👹 {{ enemigo.nombre }}</h1>
+        <p class="text-muted">{{ enemigo.zona.nombre }} | Creado por: {{ enemigo.creado_por.username }}</p>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if is_game_master or is_content_creator %}
+        <a href="/juego/enemigos/{{ enemigo.id }}/editar/" class="btn btn-warning">✏️ Editar</a>
+        <a href="/juego/enemigos/{{ enemigo.id }}/eliminar/" class="btn btn-danger">🗑️ Eliminar</a>
+        {% if is_game_master %}
+        <form method="post" action="/juego/enemigos/{{ enemigo.id }}/alternar-estado/" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-{% if enemigo.activo %}danger{% else %}success{% endif %}">
+                {% if enemigo.activo %}⊘ Desactivar{% else %}✓ Activar{% endif %}
+            </button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Clasificación</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>Tipo:</strong></td>
+                        <td><span class="badge bg-info">{{ enemigo.get_tipo_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rareza:</strong></td>
+                        <td>
+                            <span class="badge" style="background: {% if enemigo.rareza == 'legendario' %}#ffd700{% elif enemigo.rareza == 'epico' %}#c060ff{% elif enemigo.rareza == 'raro' %}#60a0ff{% else %}#808080{% endif %}">
+                                {{ enemigo.get_rareza_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Zona:</strong></td>
+                        <td><a href="/juego/zonas/{{ enemigo.zona.id }}/">{{ enemigo.zona.nombre }}</a></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Estado:</strong></td>
+                        <td>{% if enemigo.activo %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-danger">Inactivo</span>{% endif %}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Recompensas</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>EXP Otorgada:</strong></td>
+                        <td class="text-success"><strong>{{ enemigo.exp_otorgada }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Oro Otorgado:</strong></td>
+                        <td class="text-warning"><strong>{{ enemigo.oro_otorgado }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Descripción</h5>
+                <p>{{ enemigo.descripcion|linebreaks }}</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Estadísticas de Combate</h5>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h3 class="text-danger">{{ enemigo.vida_maxima }}</h3>
+                        <p class="text-muted small">Vida Máxima</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-warning">{{ enemigo.ataque }}</h3>
+                        <p class="text-muted small">Ataque</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-info">{{ enemigo.defensa }}</h3>
+                        <p class="text-muted small">Defensa</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h3 class="text-success">{{ enemigo.velocidad }}</h3>
+                        <p class="text-muted small">Velocidad</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
