@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if form.instance.pk %}Editar{% else %}Crear{% endif %} Personaje - DungeonLedger</title>
+</head>
+<body>
+    <h1>{% if form.instance.pk %}Editar{% else %}Crear Nuevo{% endif %} Personaje</h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div style="color: red;">
+                <strong>Errores en el formulario:</strong>
+                <ul>
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ field }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+        
+        <table>
+            {{ form.as_table }}
+        </table>
+        
+        <button type="submit">{% if form.instance.pk %}Guardar Cambios{% else %}Crear Personaje{% endif %}</button>
+        <a href="{% url 'juego:personaje-lista' %}">Cancelar</a>
+    </form>
+</body>
+</html>

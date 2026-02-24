@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ personaje.nombre }} - DungeonLedger</title>
+</head>
+<body>
+    <h1>{{ personaje.nombre }} (Nivel {{ personaje.nivel }})</h1>
+    
+    <p><a href="{% url 'juego:personaje-lista' %}">Volver a la lista</a></p>
+    
+    <h2>Estadísticas</h2>
+    <table border="1">
+        <tr>
+            <th>Nivel</th>
+            <td>{{ personaje.nivel }}</td>
+        </tr>
+        <tr>
+            <th>EXP Actual</th>
+            <td>{{ personaje.exp_actual }}</td>
+        </tr>
+        <tr>
+            <th>Vida</th>
+            <td>{{ personaje.vida_actual }}/{{ personaje.salud_maxima }}</td>
+        </tr>
+        <tr>
+            <th>Ataque</th>
+            <td>{{ personaje.ataque }}</td>
+        </tr>
+        <tr>
+            <th>Defensa</th>
+            <td>{{ personaje.defensa }}</td>
+        </tr>
+        <tr>
+            <th>Velocidad</th>
+            <td>{{ personaje.velocidad }}</td>
+        </tr>
+        <tr>
+            <th>Estado</th>
+            <td>{{ personaje.get_estado_display }}</td>
+        </tr>
+    </table>
+    
+    <h2>Inventario</h2>
+    {% if inventario_stats %}
+        <p>Total de objetos: {{ inventario_stats.total_objetos|default:"0" }}</p>
+        <p>Cantidad total de items: {{ inventario_stats.total_cantidad|default:"0" }}</p>
+    {% endif %}
+    
+    <p><a href="{% url 'juego:inventario-ver' personaje.id %}">Ver Inventario Completo</a></p>
+    
+    <h3>Objetos Recientes</h3>
+    {% if personaje.inventario_items.all %}
+        <ul>
+            {% for item in personaje.inventario_items.all|slice:":5" %}
+                <li>
+                    {{ item.objeto.nombre }} x{{ item.cantidad }}
+                    {% if item.equipado %}[Equipado]{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>El inventario está vacío.</p>
+    {% endif %}
+    
+    <h2>Acciones</h2>
+    <p>
+        <a href="{% url 'juego:personaje-editar' personaje.pk %}">Editar Personaje</a> |
+        <a href="{% url 'juego:inventario-ver' personaje.id %}">Gestionar Inventario</a> |
+        <a href="{% url 'juego:personaje-eliminar' personaje.pk %}">Eliminar Personaje</a>
+    </p>
+    
+    <h2>Preferencias</h2>
+    <p>Tema actual: {{ tema }}</p>
+    <form method="post" action="{% url 'juego:tema-fijar' personaje.id %}?theme=claro">
+        {% csrf_token %}
+        <button type="submit">Tema Claro</button>
+    </form>
+    <form method="post" action="{% url 'juego:tema-fijar' personaje.id %}?theme=oscuro">
+        {% csrf_token %}
+        <button type="submit">Tema Oscuro</button>
+    </form>
+</body>
+</html>
