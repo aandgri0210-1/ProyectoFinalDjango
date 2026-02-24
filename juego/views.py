@@ -203,7 +203,7 @@ def register_view(request):
         
         if len(password) < 6:
             error = 'La contraseña debe tener al menos 6 caracteres'
-            return render(request, 'register.html', {'error': error})
+            return render(request, 'registro.html', {'error': error})
         
         user = User.objects.create_user(username=username, password=password)
         login(request, user)
