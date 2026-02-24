@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 
-Usuario = get_user_model() #Queda agregarlo
+Usuario = get_user_model()
 
 
 class Personaje(models.Model):
@@ -56,27 +56,21 @@ class Personaje(models.Model):
         
         constraints = [
             models.CheckConstraint(
-                check=models.Q(nivel__gte=1, nivel__lte=100),
+                condition=models.Q(nivel__gte=1, nivel__lte=100),
                 name='nivel_valido'
             ),
             models.CheckConstraint(
-                check=models.Q(exp_actual__gte=0),
+                condition=models.Q(exp_actual__gte=0),
                 name='exp_no_negativa'
             ),
             models.CheckConstraint(
-                check=models.Q(vida_actual__gte=0),
+                condition=models.Q(vida_actual__gte=0),
                 name='vida_actual_no_negativa'
             ),
             models.CheckConstraint(
-                check=models.Q(vida_actual__lte=models.F('salud_maxima')),
+                condition=models.Q(vida_actual__lte=models.F('salud_maxima')),
                 name='vida_no_supera_maxima'
             ),
-        ]
-        
-        indexes = [
-            models.Index(fields=['usuario', 'nombre']),
-            models.Index(fields=['usuario', '-nivel']),
-            models.Index(fields=['estado']),
         ]
         
         ordering = ['-fecha_creacion']
@@ -114,19 +108,6 @@ class Personaje(models.Model):
 
     def esta_vivo(self):
         return self.vida_actual > 0
-
-    def obtener_estadisticas_totales(self):
-        return {
-            'nombre': self.nombre,
-            'nivel': self.nivel,
-            'exp': self.exp_actual,
-            'ataque': self.ataque,
-            'defensa': self.defensa,
-            'salud_maxima': self.salud_maxima,
-            'vida_actual': self.vida_actual,
-            'velocidad': self.velocidad,
-            'estado': self.get_estado_display(),
-        }
 
 class Objeto(models.Model):
 
@@ -205,22 +186,17 @@ class Objeto(models.Model):
 
         constraints = [
             models.CheckConstraint(
-                check=models.Q(valor_venta__gte=0),
+                condition=models.Q(valor_venta__gte=0),
                 name='valor_no_negativo'
             ),
 
             models.CheckConstraint(
-                check=models.Q(
+                condition=models.Q(
                     models.Q(tipo='equipable', slot__isnull=False) |
                     models.Q(tipo='consumible', slot__isnull=True)
                 ),
                 name='consumible_no_tiene_slot'
             ),
-        ]
-
-        indexes = [
-            models.Index(fields=['tipo']),
-            models.Index(fields=['rareza']),
         ]
 
         ordering = ['rareza', 'nombre']
@@ -291,23 +267,17 @@ class Inventario(models.Model):
 
         constraints = [
             models.CheckConstraint(
-                check=models.Q(cantidad__gte=1),
+                condition=models.Q(cantidad__gte=1),
                 name='cantidad_minima_uno'
             ),
 
             models.CheckConstraint(
-                check=models.Q(
+                condition=models.Q(
                     models.Q(equipado=False) |
                     models.Q(equipado=True, posicion_slot__isnull=False)
                 ),
                 name='equipado_requiere_slot'
             ),
-        ]
-
-        indexes = [
-            models.Index(fields=['personaje', 'equipado']),
-            models.Index(fields=['personaje', '-fecha_adquisicion']),
-            models.Index(fields=['objeto']),
         ]
 
         ordering = ['-equipado', '-fecha_adquisicion']
@@ -318,40 +288,11 @@ class Inventario(models.Model):
 
     def clean(self):
         super().clean()
-
         if self.equipado and self.objeto.tipo != 'equipable':
-            raise ValidationError({
-                'equipado': 'Solo los objetos equipables pueden estar equipados.'
-            })
-
-        if self.equipado:
-            if not self.posicion_slot:
-                raise ValidationError({
-                    'posicion_slot': 'Los objetos equipados deben tener una posición de slot.'
-                })
-
-            if self.posicion_slot != self.objeto.slot:
-                raise ValidationError({
-                    'posicion_slot': f'El slot debe coincidir con el del objeto ({self.objeto.slot}).'
-                })
-
-        if not self.equipado and self.posicion_slot:
-            raise ValidationError({
-                'posicion_slot': 'Los objetos no equipados no deben tener posición de slot.'
-            })
-
-        if self.equipado:
-            conflicto = Inventario.objects.filter(
-                personaje=self.personaje,
-                equipado=True,
-                posicion_slot=self.posicion_slot
-            ).exclude(pk=self.pk)
-
-            if conflicto.exists():
-                objeto_conflicto = conflicto.first()
-                raise ValidationError({
-                    'equipado': f'Ya tienes un objeto equipado en {self.posicion_slot}: {objeto_conflicto.objeto.nombre}'
-                })
+            raise ValidationError('Solo los objetos equipables pueden estar equipados.')
+        
+        if self.equipado and self.posicion_slot != self.objeto.slot:
+            raise ValidationError(f'El slot debe coincidir con el del objeto.')
 
     def save(self, *args, **kwargs):
         self.full_clean()

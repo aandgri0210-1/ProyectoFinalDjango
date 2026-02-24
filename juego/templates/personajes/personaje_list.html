@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Personajes - DungeonLedger</title>
+</head>
+<body>
+    <div style="text-align: right; margin-bottom: 20px;">
+        <p>Bienvenido, <strong>{{ user.username }}</strong></p>
+        <a href="{% url 'juego:cerrar-sesion' %}">Cerrar sesión</a>
+    </div>
+    
+    <h1>Mis Personajes</h1>
+    
+    <form method="get">
+        <input type="text" name="buscar" placeholder="Buscar personaje..." value="{{ request.GET.buscar }}">
+        <button type="submit">Buscar</button>
+        <a href="{% url 'juego:personaje-lista' %}">Limpiar</a>
+    </form>
+    
+    <a href="{% url 'juego:personaje-crear' %}">Crear Nuevo Personaje</a>
+    
+    {% if personajes %}
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Nivel</th>
+                    <th>EXP</th>
+                    <th>Vida</th>
+                    <th>Estado</th>
+                    <th>Items en Inventario</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for personaje in personajes %}
+                <tr>
+                    <td>{{ personaje.nombre }}</td>
+                    <td>{{ personaje.nivel }}</td>
+                    <td>{{ personaje.exp_actual }}</td>
+                    <td>{{ personaje.vida_actual }}/{{ personaje.salud_maxima }}</td>
+                    <td>{{ personaje.get_estado_display }}</td>
+                    <td>{{ personaje.total_items }}</td>
+                    <td>
+                        <a href="{% url 'juego:personaje-detalle' personaje.pk %}">Ver</a>
+                        <a href="{% url 'juego:personaje-editar' personaje.pk %}">Editar</a>
+                        <a href="{% url 'juego:inventario-ver' personaje.id %}">Inventario</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No tienes personajes. <a href="{% url 'juego:personaje-crear' %}">Crea uno ahora</a></p>
+    {% endif %}
+</body>
+</html>

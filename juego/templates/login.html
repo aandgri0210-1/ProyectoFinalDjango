@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - DungeonLedger</title>
+</head>
+<body>
+    <h1>Iniciar Sesión</h1>
+    
+    {% if error %}
+        <div style="color: red;">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div>
+            <label for="username">Usuario:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        
+        <div>
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <button type="submit">Iniciar Sesión</button>
+    </form>
+    
+    <p>
+        ¿No tienes cuenta?
+        <a href="{% url 'juego:registro' %}">Crear cuenta aquí</a>
+    </p>
+    
+    <p>
+        Para crear un nuevo usuario, accede a:
+        <a href="/admin/">Panel de administración</a>
+        (requiere ser superusuario)
+    </p>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - DungeonLedger</title>
+</head>
+<body>
+    <h1>Crear Nueva Cuenta</h1>
+    
+    {% if error %}
+        <div style="color: red;">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div>
+            <label for="username">Usuario:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        
+        <div>
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <div>
+            <label for="password_confirm">Confirmar Contraseña:</label>
+            <input type="password" id="password_confirm" name="password_confirm" required>
+        </div>
+        
+        <button type="submit">Crear Cuenta</button>
+    </form>
+    
+    <p>
+        ¿Ya tienes cuenta?
+        <a href="{% url 'juego:inicio-sesion' %}">Inicia sesión aquí</a>
+    </p>
+</body>
+</html>
