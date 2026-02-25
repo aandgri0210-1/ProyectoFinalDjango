@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Estadisticas del Contenido del juego</h1>
+
+<hr>
+
+<h2>Total de Contenido</h2>
+
+<p><strong> Zonas creadas:</strong>{{ total_zonas }} </p>
+<p><strong>Enemigos creados:</strong> {{ total_enemigos }}</p>
+<p><strong>Jefes finales:</strong>{{ total_jefes }} </p>
+
+<hr>
+
+<h2>Promedio de enemigos</h2>
+<p><strong>EXP Promedio:</strong>{{ promedio_exp|floatformat:2 }} </p>
+<p><strong>Vida Promedio:</strong>{{ promedio_vida|floatformat:2 }} </p>
+
+<hr>
+
+<a href="{% url 'zona-list' %}">Ver Zonas</a> |
+<a href="{% url 'enemigo-list' %}">Ver Enemigos</a>
+{% endblock %}

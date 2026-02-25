@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>{{ enemigo.nombre }}</h1>
+
+<p><strong>Tipo:</strong>{{ enemigo.tipo }} </p>
+<p><strong>Rareza:</strong> {{ enemigo.rareza }} </p>
+<p><strong>Zona:</strong>{{ enemigo.zona.nombre }} </p>
+
+
+<p>{{ enemigo.descripcion }}</p>
+<p><small>Creado por: {{ enemigo.creada_por.username }}</small> </p>
+
+<hr>
+
+<a href="{% url 'enemigo-update' enemigo.pk %}">Editar</a> |
+<a href="{% url 'enemigo-delete' enemigo.pk %}">Eliminar</a>|
+<a href="{% url 'enemigo-list' %}">Volver a la lista</a>
+
+{% endblock %}

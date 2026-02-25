@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Listado de Zonas</h1>
+
+{% if zonas %}
+    <ul>
+        {% for zona in zonas %}
+            <li>
+                <a href="{% url 'zona-detail' zona.pk %}">{{ zona.nombre }}</a>
+                - Nivel {{ zona.nivel }} ({{ zona.num_enemigos }} enemigo{{ zona.num_enemigos|pluralize }})
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No hay zonas registradas</p>
+{% endif %}
+
+<a href="{% url 'zona-create' %}">Crear Nueva Zona</a>
+
+{% endblock %}

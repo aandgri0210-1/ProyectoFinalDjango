@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Zona{% endblock %}
+
+{% block content %}
+    <h1>Eliminar Zona</h1>
+    <p>¿Estás seguro de que deseas eliminar la zona <strong>{{ zona.nombre }}</strong>?</p>
+    <p>Esta acción no se puede deshacer.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Sí, eliminar</button>
+        <a href="{% url 'zona-list' %}">Cancelar</a>
+    </form>
+{% endblock %}

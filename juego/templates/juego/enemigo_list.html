@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Lista de Enemigos</h1>
+
+<a href="{% url 'enemigo-create' %}">Crear Nuevo Enemigo</a>
+
+<hr>
+
+{% if enemigos %}
+    <ul>
+        {% for enemigo in enemigos %}
+            <li>
+                <a href="{% url 'enemigo-detail' enemigo.pk %}">{{ enemigo.nombre }}</a>
+                - {{ enemigo.zona.nombre }} ({{ enemigo.tipo }})
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No hay enemigos disponibles.</p>
+{% endif %}
+
+{% endblock %}
