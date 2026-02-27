@@ -407,3 +407,66 @@ class Enemigo(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.get_tipo_display()}) - {self.zona.nombre}"
+
+class Combate(models.Model):
+    RESULTADO_CHOICES = (
+        ('victoria', 'Victoria'),
+        ('derrota', 'Derrota'),
+        ('huida', 'Huida'),
+    )
+
+    TIPO_CHOICES = (
+        ('normal', 'Normal'),
+        ('jefe', 'Jefe'),
+    )
+
+    personaje = models.ForeignKey(
+        Personaje,
+        on_delete=models.CASCADE,
+        related_name='combates',
+        related_query_name='combate'
+    )
+    enemigo = models.ForeignKey(
+        Enemigo,
+        on_delete=models.CASCADE,
+        related_name='combates',
+        related_query_name='combate'
+    )
+    zona = models.ForeignKey(
+        Zona,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='combates',
+    )
+    tipo = models.CharField(
+        max_length=10, 
+        choices=TIPO_CHOICES, 
+        default='normal'
+    )
+    resultado = models.CharField(max_length=20, choices=RESULTADO_CHOICES, blank=True, null=True)
+    exp_ganada = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    botin = models.ForeignKey(
+        Objeto,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='combates_dropeados'
+    )
+    fecha_hora = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'juego_combate'
+        verbose_name = 'Combate'
+        verbose_name_plural = 'Combates'
+        ordering = ['-fecha_hora']
+
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(exp_ganada__gte=0),
+                name='exp_ganada_no_negativa'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.personaje.nombre} vs {self.enemigo.nombre} - {self.get_resultado_display()}"

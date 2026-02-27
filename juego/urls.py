@@ -30,4 +30,6 @@ urlpatterns = [
     path('enemigos/<int:pk>/delete/', views.EnemigoDeleteView.as_view(), name='enemigo-delete'),
     path('estadisticas/', views.estadisticas_view, name='estadisticas'),
     path('cambiar-tema/', views.cambiar_tema_view, name='cambiar-tema'),
+    path('personajes/<int:personaje_id>/combates/', views.CombateListView.as_view(), name='combate-list'),
+    path('personajes/<int:personaje_id>/combates/crear/', views.CombateCreateView.as_view(), name='combate-create'),
 ]

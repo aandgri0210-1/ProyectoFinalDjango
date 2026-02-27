@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>
+    {% if combate.resultado == 'victoria' %}¡Victoria!{% else %}Derrota{% endif %}
+    — {{ personaje.nombre }} vs {{ combate.enemigo.nombre }}
+</h2>
+
+{% if combate.resultado == 'victoria' %}
+<div class="alert alert-success">
+    +{{ combate.exp_ganada }} EXP
+    {% if combate.botin %}
+    <br>Has conseguido: <strong>{{ combate.botin.nombre }}</strong>!
+    {% endif %}
+</div>
+{% else %}
+<div class="alert alert-danger">{{ personaje.nombre }} fue derrotado.</div>
+{% endif %}
+
+<a href="{% url 'juego:combate-create' personaje.id %}" class="btn btn-danger">Nuevo combate</a>
+<a href="{% url 'juego:combate-list' personaje.id %}" class="btn btn-secondary">Historial</a>
+<a href="{% url 'juego:personaje-detalle' personaje.id %}" class="btn btn-outline-secondary">Perfil</a>
+{% endblock %}

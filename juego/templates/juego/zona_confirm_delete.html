@@ -10,6 +10,6 @@
     <form method="post">
         {% csrf_token %}
         <button type="submit">Sí, eliminar</button>
-        <a href="{% url 'zona-list' %}">Cancelar</a>
+        <a href="{% url 'juego:zona-list' %}">Cancelar</a>
     </form>
 {% endblock %}

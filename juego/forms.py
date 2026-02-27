@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Enemigo, Inventario, Objeto, Personaje, Zona
+from .models import Enemigo, Combate, Inventario, Objeto, Personaje, Zona
 
 
 class PersonajeForm(forms.ModelForm):
@@ -258,3 +258,101 @@ class EnemigoForm(forms.ModelForm):
                     )
 
         return cleaned_data
+
+class EnemigoSelectWidget(forms.Select):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        # En Django >= 1.11, value puede ser un objeto o el ID
+        val = value.value if hasattr(value, 'value') else value
+        if val:
+            try:
+                obj = self.choices.queryset.get(pk=val)
+                option['attrs']['data-zona-id'] = obj.zona_id
+            except (Enemigo.DoesNotExist, ValueError, AttributeError):
+                pass
+        return option
+
+class CombateForm(forms.ModelForm):
+    resultado = forms.ChoiceField(choices=Combate.RESULTADO_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
+    exp_ganada = forms.IntegerField(required=False, min_value=0, widget=forms.NumberInput(attrs={'class': 'form-control'}))
+    botin = forms.ModelChoiceField(queryset=Objeto.objects.all(), required=False, widget=forms.Select(attrs={'class': 'form-control'}))
+    enemigo = forms.ModelChoiceField(queryset=Enemigo.objects.all(), widget=EnemigoSelectWidget(attrs={'class': 'form-control'}))
+
+    class Meta:
+        model = Combate
+        fields = ['enemigo', 'zona', 'resultado', 'exp_ganada', 'botin']
+        widgets = {
+            'enemigo': forms.Select(attrs={'class': 'form-control'}),
+            'zona': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Quitado lógica de personaje_fijo y queryset de personaje
+        # ya que el personaje se gestiona directamente en la vista.
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        enemigo = cleaned_data.get('enemigo')
+        resultado = cleaned_data.get('resultado')
+        exp_ganada = cleaned_data.get('exp_ganada')
+        
+        if enemigo and enemigo.tipo == 'jefe':
+            if resultado == 'huida':
+                raise ValidationError('No puedes huir de un combate contra un jefe.')
+                
+        if exp_ganada is not None and exp_ganada < 0:
+            raise ValidationError('La EXP ganada no puede ser negativa.')
+            
+        if enemigo and exp_ganada is None:
+            # Autocalculamos si no la puso
+            cleaned_data['exp_ganada'] = enemigo.exp_otorgada if resultado == 'victoria' else 0
+            
+        return cleaned_data
+
+
+class IniciarCombateForm(forms.Form):
+    TIPO_CHOICES = [
+        ('normal', 'Enemigo Normal'),
+        ('jefe', 'Jefe de Zona'),
+    ]
+    zona = forms.ModelChoiceField(
+        queryset=Zona.objects.filter(activa=True).order_by('nivel', 'nombre'),
+        label='Zona de combate',
+        empty_label='— Selecciona una zona —',
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_zona'}),
+    )
+    tipo = forms.ChoiceField(
+        choices=Combate.TIPO_CHOICES,
+        label='Tipo de enemigo',
+        widget=forms.RadioSelect(attrs={'class': 'tipo-radio'}),
+        initial='normal',
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        zona = cleaned_data.get('zona')
+        tipo = cleaned_data.get('tipo')
+        if zona and tipo:
+            disponibles = Enemigo.objects.filter(zona=zona, tipo=tipo, activo=True)
+            if not disponibles.exists():
+                raise forms.ValidationError(
+                    f'No hay enemigos de tipo "{tipo}" activos en la zona "{zona.nombre}".'
+                )
+        return cleaned_data
+
+
+class SeleccionarEnemigoForm(forms.Form):
+    enemigo = forms.ModelChoiceField(
+        queryset=Enemigo.objects.none(),
+        label='Elige tu adversario',
+        empty_label=None,
+        widget=forms.RadioSelect(attrs={'class': 'enemigo-radio'}),
+    )
+
+    def __init__(self, *args, zona=None, tipo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if zona and tipo:
+            self.fields['enemigo'].queryset = Enemigo.objects.filter(
+                zona=zona, tipo=tipo, activo=True
+            ).order_by('nombre')

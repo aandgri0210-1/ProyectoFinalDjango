@@ -8,7 +8,7 @@
     <ul>
         {% for zona in zonas %}
             <li>
-                <a href="{% url 'zona-detail' zona.pk %}">{{ zona.nombre }}</a>
+                <a href="{% url 'juego:zona-detail' zona.pk %}">{{ zona.nombre }}</a>
                 - Nivel {{ zona.nivel }} ({{ zona.num_enemigos }} enemigo{{ zona.num_enemigos|pluralize }})
             </li>
         {% endfor %}
@@ -17,6 +17,6 @@
     <p>No hay zonas registradas</p>
 {% endif %}
 
-<a href="{% url 'zona-create' %}">Crear Nueva Zona</a>
+<a href="{% url 'juego:zona-create' %}">Crear Nueva Zona</a>
 
 {% endblock %}

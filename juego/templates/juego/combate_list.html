@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>Combates de {{ personaje.nombre }}</h2>
+        <p class="text-muted">EXP: {{ personaje.exp_actual }} / Lvl {{ personaje.nivel }}</p>
+    </div>
+    <div class="col text-end">
+        <a href="{% url 'juego:combate-create' personaje.id %}" class="btn btn-danger">Nuevo Combate</a>
+        <a href="{% url 'juego:personaje-detalle' personaje.id %}" class="btn btn-secondary">Volver al Perfil</a>
+    </div>
+</div>
+
+{% if combates %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Fecha</th>
+                <th>Enemigo</th>
+                <th>Zona</th>
+                <th>Resultado</th>
+                <th>EXP Ganada</th>
+                <th>Botín</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for combate in combates %}
+            <tr
+                class="{% if combate.resultado == 'victoria' %}table-success{% elif combate.resultado == 'derrota' %}table-danger{% else %}table-warning{% endif %}">
+                <td>{{ combate.fecha_hora|date:"d M Y H:i" }}</td>
+                <td>
+                    {{ combate.enemigo.nombre }}
+                    {% if combate.enemigo.tipo == 'jefe' %}
+                    <span class="badge bg-danger">JEFE</span>
+                    {% endif %}
+                </td>
+                <td>{{ combate.zona.nombre|default:"—" }}</td>
+                <td>
+                    {% if combate.resultado == 'victoria' %}
+                    <strong class="text-success">Victoria</strong>
+                    {% elif combate.resultado == 'derrota' %}
+                    <strong class="text-danger">Derrota</strong>
+                    {% else %}
+                    <strong class="text-warning">Huida</strong>
+                    {% endif %}
+                </td>
+                <td>+{{ combate.exp_ganada }} EXP</td>
+                <td>
+                    {% if combate.botin %}
+                    <span class="badge bg-info text-dark">{{ combate.botin.nombre }}</span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info text-center shadow-sm">
+    <h4 class="alert-heading">Sin combates registrados</h4>
+    <p>Este personaje aún no ha luchado. <a href="{% url 'juego:combate-create' personaje.id %}">¡Iniciar combate!</a>
+    </p>
+</div>
+{% endif %}
+{% endblock %}

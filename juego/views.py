@@ -1,17 +1,19 @@
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
+from django.contrib import messages
 from django.db.models import Avg, Count, F, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView, DetailView
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView, DetailView, View
 
-from .forms import AddInventoryItemForm, EnemigoForm, PersonajeForm, UseConsumableForm, ZonaForm
+from .forms import AddInventoryItemForm, CombateForm, EnemigoForm, IniciarCombateForm, PersonajeForm, SeleccionarEnemigoForm, UseConsumableForm, ZonaForm
 from .mixins import AdminRequiredMixin, OwnerRequiredMixin, SetLastCharacterMixin
-from .models import Enemigo, Inventario, Objeto, Personaje, Zona
+from .models import Enemigo, Inventario, Objeto, Personaje, Zona, Combate
 
 class ListaPersonajesView(LoginRequiredMixin, ListView):
     model = Personaje
@@ -336,6 +338,18 @@ def estadisticas_view(request):
         promedio_exp=Avg('exp_otorgada'),
         promedio_vida=Avg('vida_maxima')
     )
+    
+    # Stats reales basadas en Combate
+    stats_combates = Combate.objects.aggregate(
+        total=Count('id'),
+        promedio_exp_ganada=Avg('exp_ganada'),
+    )
+    
+    # Mejores personajes (Win Rate)
+    personajes_stats = Personaje.objects.annotate(
+        total_combates=Count('combate'),
+        victorias=Count('combate', filter=Q(combate__resultado='victoria')),
+    ).order_by('-victorias')[:10]
 
     context = {
         'total_zonas': total_zonas,
@@ -343,6 +357,9 @@ def estadisticas_view(request):
         'total_jefes': total_jefes,
         'promedio_exp': stats['promedio_exp'] or 0,
         'promedio_vida': stats['promedio_vida'] or 0,
+        'total_combates': stats_combates['total'] or 0,
+        'promedio_exp_ganada': stats_combates['promedio_exp_ganada'] or 0,
+        'personajes_stats': personajes_stats,
     }
 
     return render(request, 'juego/estadisticas.html', context)
@@ -365,3 +382,209 @@ def guardar_zona_sesion_view(request, pk):
     request.session['ultima_zona_id'] = pk
     request.session.set_expiry(24 * 60 * 60)
     return redirect('juego:zona-detail', pk=pk)
+
+class CombateListView(LoginRequiredMixin, ListView):
+    model = Combate
+    template_name = 'juego/combate_list.html'
+    context_object_name = 'combates'
+
+    def test_func(self):
+        personaje_id = self.kwargs.get('personaje_id')
+        return Personaje.objects.filter(id=personaje_id, usuario=self.request.user).exists()
+
+    def get_queryset(self):
+        personaje_id = self.kwargs.get('personaje_id')
+        return Combate.objects.filter(
+            personaje_id=personaje_id,
+            personaje__usuario=self.request.user
+        ).select_related('enemigo', 'botin', 'zona')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        personaje_id = self.kwargs.get('personaje_id')
+        context['personaje'] = get_object_or_404(Personaje, id=personaje_id, usuario=self.request.user)
+        return context
+
+import random as _random
+
+
+def _calcular_danio(ataque, defensa):
+    """Refined damage formula: (60-100% of atk) - (def//4), min 1."""
+    base_dmg = _random.randint(int(ataque * 0.6), ataque)
+    reduction = defensa // 4
+    return max(1, base_dmg - reduction)
+
+
+def _stats_efectivos(personaje):
+    """Returns effective stats including bonuses from equipped inventory items."""
+    ataque = personaje.ataque
+    defensa = personaje.defensa
+    velocidad = personaje.velocidad
+    # Robust health handling
+    base_vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
+    vida = base_vida
+    
+    arma = None
+    armadura = None
+    for inv in personaje.inventario_items.filter(equipado=True).select_related('objeto'):
+        obj = inv.objeto
+        ataque += obj.bonus_ataque
+        defensa += obj.bonus_defensa
+        velocidad += obj.bonus_velocidad
+        vida += obj.bonus_salud
+        if obj.slot == 'arma':
+            arma = obj.nombre
+        elif obj.slot == 'armadura':
+            armadura = obj.nombre
+            
+    return {
+        'ataque': ataque, 
+        'defensa': defensa, 
+        'velocidad': velocidad,
+        'vida_actual': vida, 
+        'vida_max': personaje.salud_maxima + (vida - base_vida),
+        'arma': arma, 
+        'armadura': armadura
+    }
+
+
+def _simular_combate(personaje, enemigo):
+    """
+    Simulates a turn-based combat starting with CURRENT health.
+    Returns dict with results and final health.
+    """
+    p = _stats_efectivos(personaje)
+    p_vida = p['vida_actual']
+    p_vida_max = p['vida_max']
+    e_vida = enemigo.vida_maxima
+
+    primero = p['velocidad'] >= enemigo.velocidad
+    if p['velocidad'] == enemigo.velocidad:
+        primero = _random.choice([True, False])
+
+    for ronda in range(1, 51):
+        if p_vida <= 0 or e_vida <= 0:
+            break
+
+        if primero:
+            dmg = _calcular_danio(p['ataque'], enemigo.defensa)
+            e_vida = max(0, e_vida - dmg)
+            if e_vida <= 0:
+                break
+            dmg = _calcular_danio(enemigo.ataque, p['defensa'])
+            p_vida = max(0, p_vida - dmg)
+        else:
+            dmg = _calcular_danio(enemigo.ataque, p['defensa'])
+            p_vida = max(0, p_vida - dmg)
+            if p_vida <= 0:
+                break
+            dmg = _calcular_danio(p['ataque'], enemigo.defensa)
+            e_vida = max(0, e_vida - dmg)
+
+    # Calcular la vida final
+    bonus_salud = p_vida_max - personaje.salud_maxima
+    p_vida_base_final = max(0, p_vida - bonus_salud)
+
+    if e_vida <= 0:
+        return {
+            'resultado': 'victoria', 
+            'exp_ganada': enemigo.exp_otorgada, 
+            'botin': None,
+            'p_vida_base_final': p_vida_base_final
+        }
+    else:
+        return {
+            'resultado': 'derrota', 
+            'exp_ganada': 0, 
+            'botin': None,
+            'p_vida_base_final': 0
+        }
+
+
+class CombateCreateView(LoginRequiredMixin, View):
+    """
+    Unified view to select enemy and run combat in one step.
+    GET  → Show zone/enemy selection.
+    POST → Run combat and save result.
+    """
+
+    def get(self, request, personaje_id):
+        personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+        
+        # Vida actual para comprobación (si es None, usamos salud_maxima por seguridad)
+        vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
+        
+        if vida <= 0:
+            messages.error(request, f"¡{personaje.nombre} no tiene vida suficiente para combatir!")
+            return redirect('juego:personaje-detalle', pk=personaje.id)
+            
+        form = CombateForm()
+        return render(request, 'juego/combate_form.html', {
+            'form': form, 'personaje': personaje,
+        })
+
+    def post(self, request, personaje_id):
+        personaje = get_object_or_404(Personaje, id=personaje_id)
+        if personaje.usuario != request.user:
+            raise PermissionDenied("Este personaje no te pertenece.")
+
+        vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
+        
+        if vida <= 0:
+            messages.error(request, "Tu personaje no puede luchar sin vida.")
+            return redirect('juego:personaje-detalle', pk=personaje.id)
+
+        form = CombateForm(request.POST)
+        if form.is_valid():
+            save_instance = form.save(commit=False)
+            save_instance.personaje = personaje
+            
+            # Automatización: Forzar Zona y Tipo desde el Enemigo seleccionado para evitar inconsistencias
+            enemigo = save_instance.enemigo
+            save_instance.zona = enemigo.zona
+            save_instance.tipo = enemigo.tipo
+
+            if not save_instance.resultado:
+                # MODO SIMULACIÓN: El resultado se genera automáticamente
+                res = _simular_combate(personaje, enemigo)
+                save_instance.resultado = res['resultado']
+                save_instance.exp_ganada = res['exp_ganada']
+                save_instance.botin = res['botin']
+                
+                # Actualizamos las estadísticas del objeto personaje
+                personaje.vida_actual = res['p_vida_base_final']
+                personaje.exp_actual += res['exp_ganada']
+                loot_to_add = res['botin']
+            else:
+                # MODO MANUAL: Se respeta lo introducido por el usuario
+                personaje.exp_actual += save_instance.exp_ganada or 0
+                loot_to_add = save_instance.botin if save_instance.resultado == 'victoria' else None
+
+            # Gestión de inventario si hay botín
+            if loot_to_add:
+                inv_item, created = Inventario.objects.get_or_create(
+                    personaje=personaje,
+                    objeto=loot_to_add,
+                    defaults={'cantidad': 1}
+                )
+                if not created:
+                    Inventario.objects.filter(id=inv_item.id).update(cantidad=F('cantidad') + 1)
+
+            # Guardamos Combate y Actualizamos Personaje
+            save_instance.save()
+            personaje.save()
+            
+            personaje.refresh_from_db()
+            if personaje.exp_actual >= personaje.nivel * 100:
+                personaje.subir_nivel()
+
+            return render(request, 'juego/combate_arena.html', {
+                'personaje': personaje,
+                'combate': save_instance,
+            })
+
+        return render(request, 'juego/combate_form.html', {
+            'form': form, 'personaje': personaje,
+        })
+
+

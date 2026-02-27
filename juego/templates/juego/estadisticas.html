@@ -2,24 +2,98 @@
 
 {% block content %}
 
-<h1>Estadisticas del Contenido del juego</h1>
-
+<h1>Estadísticas Globales del Servidor</h1>
 <hr>
 
-<h2>Total de Contenido</h2>
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h4 class="mb-0">Contenido del Mundo</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Zonas Creadas
+                        <span class="badge bg-primary rounded-pill">{{ total_zonas }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Enemigos Totales
+                        <span class="badge bg-danger rounded-pill">{{ total_enemigos }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Jefes Finales
+                        <span class="badge bg-warning text-dark rounded-pill">{{ total_jefes }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
-<p><strong> Zonas creadas:</strong>{{ total_zonas }} </p>
-<p><strong>Enemigos creados:</strong> {{ total_enemigos }}</p>
-<p><strong>Jefes finales:</strong>{{ total_jefes }} </p>
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Registros de Combate</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        Combates Totales
+                        <span class="badge bg-secondary rounded-pill">{{ total_combates }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        EXP Promedio por Combate
+                        <span class="badge bg-success rounded-pill">{{ promedio_exp_ganada|floatformat:0 }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        EXP Base de Enemigos
+                        <span class="badge bg-info text-dark rounded-pill">{{ promedio_exp|floatformat:0 }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 
-<hr>
+<h3 class="mt-4">Top Héroes (Más Victorias)</h3>
+<div class="table-responsive">
+    <table class="table table-hover align-middle shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Personaje</th>
+                <th>Nivel</th>
+                <th>Victorias</th>
+                <th>Combates Totales</th>
+                <th>Win Rate</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pj in personajes_stats %}
+            <tr>
+                <td>{{ pj.nombre }}</td>
+                <td>{{ pj.nivel }}</td>
+                <td class="text-success fw-bold">{{ pj.victorias }}</td>
+                <td>{{ pj.total_combates }}</td>
+                <td>
+                    {% if pj.total_combates > 0 %}
+                    {% widthratio pj.victorias pj.total_combates 100 %}%
+                    {% else %}
+                    0%
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">No hay registros de combates aún.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-<h2>Promedio de enemigos</h2>
-<p><strong>EXP Promedio:</strong>{{ promedio_exp|floatformat:2 }} </p>
-<p><strong>Vida Promedio:</strong>{{ promedio_vida|floatformat:2 }} </p>
+<div class="mt-4 gap-2 d-flex">
+    <a href="{% url 'juego:zona-list' %}" class="btn btn-outline-primary">Ver Catálogo de Zonas</a>
+    <a href="{% url 'juego:enemigo-list' %}" class="btn btn-outline-danger">Ver Catálogo de Enemigos</a>
+</div>
 
-<hr>
-
-<a href="{% url 'zona-list' %}">Ver Zonas</a> |
-<a href="{% url 'enemigo-list' %}">Ver Enemigos</a>
 {% endblock %}
