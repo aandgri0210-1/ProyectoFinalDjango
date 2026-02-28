@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de {{ objeto.nombre }} - Inventario</title>
+</head>
+<body>
+    <h1>{{ objeto.nombre }}</h1>
+
+    <p><a href="{% url 'juego:inventario-ver' personaje.id %}">Volver al inventario</a></p>
+
+    <table border="1">
+        <tr>
+            <th>Tipo</th>
+            <td>{{ objeto.get_tipo_display }}</td>
+        </tr>
+        <tr>
+            <th>Rareza</th>
+            <td>{{ objeto.get_rareza_display }}</td>
+        </tr>
+        <tr>
+            <th>Cantidad en inventario</th>
+            <td>{{ item.cantidad }}</td>
+        </tr>
+        <tr>
+            <th>Estado</th>
+            <td>
+                {% if item.equipado %}
+                    Equipado ({{ item.posicion_slot }})
+                {% else %}
+                    No equipado
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Descripción / Efecto</th>
+            <td>{{ objeto.efecto }}</td>
+        </tr>
+        <tr>
+            <th>Slot</th>
+            <td>{{ objeto.slot|default:"No aplica" }}</td>
+        </tr>
+        <tr>
+            <th>Bonus de Ataque</th>
+            <td>+{{ objeto.bonus_ataque }}</td>
+        </tr>
+        <tr>
+            <th>Bonus de Defensa</th>
+            <td>+{{ objeto.bonus_defensa }}</td>
+        </tr>
+        <tr>
+            <th>Bonus de Salud</th>
+            <td>+{{ objeto.bonus_salud }}</td>
+        </tr>
+        <tr>
+            <th>Bonus de Velocidad</th>
+            <td>+{{ objeto.bonus_velocidad }}</td>
+        </tr>
+        <tr>
+            <th>Curación de Vida</th>
+            <td>
+                {% if objeto.curacion_vida > 0 %}
+                    +{{ objeto.curacion_vida }} de vida
+                {% else %}
+                    No cura vida
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Valor de venta</th>
+            <td>{{ objeto.valor_venta }}</td>
+        </tr>
+    </table>
+</body>
+</html>

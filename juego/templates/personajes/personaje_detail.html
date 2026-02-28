@@ -8,7 +8,7 @@
 </head>
 
 <body>
-    <h1>{{ personaje.nombre }} (Nivel {{ personaje.nivel }})</h1>
+    <h1>{{ personaje.nombre }} (Nivel {{ personaje.nivel }}: {{ personaje.exp_actual }}/{{ exp_maxima }} exp)</h1>
 
     <p><a href="{% url 'juego:personaje-lista' %}">Volver a la lista</a></p>
 
@@ -19,24 +19,28 @@
             <td>{{ personaje.nivel }}</td>
         </tr>
         <tr>
-            <th>EXP Actual</th>
-            <td>{{ personaje.exp_actual }}</td>
+            <th>EXP Nivel Actual</th>
+            <td>{{ personaje.exp_actual }}/{{ exp_maxima }} exp</td>
+        </tr>
+        <tr>
+            <th>Progreso</th>
+            <td>{{ exp_progreso }}/100</td>
         </tr>
         <tr>
             <th>Vida</th>
-            <td>{{ personaje.vida_actual }}/{{ personaje.salud_maxima }}</td>
+            <td>{{ personaje.vida_actual }}/{{ salud_maxima_total }} (Base {{ personaje.salud_maxima }} + {{ bonus_salud }})</td>
         </tr>
         <tr>
             <th>Ataque</th>
-            <td>{{ personaje.ataque }}</td>
+            <td>{{ ataque_total }} (Base {{ personaje.ataque }} + {{ bonus_ataque }})</td>
         </tr>
         <tr>
             <th>Defensa</th>
-            <td>{{ personaje.defensa }}</td>
+            <td>{{ defensa_total }} (Base {{ personaje.defensa }} + {{ bonus_defensa }})</td>
         </tr>
         <tr>
             <th>Velocidad</th>
-            <td>{{ personaje.velocidad }}</td>
+            <td>{{ velocidad_total }} (Base {{ personaje.velocidad }} + {{ bonus_velocidad }})</td>
         </tr>
         <tr>
             <th>Estado</th>
@@ -44,36 +48,44 @@
         </tr>
     </table>
 
-    <h2>Inventario</h2>
-    {% if inventario_stats %}
-    <p>Total de objetos: {{ inventario_stats.total_objetos|default:"0" }}</p>
-    <p>Cantidad total de items: {{ inventario_stats.total_cantidad|default:"0" }}</p>
-    {% endif %}
-
-    <p><a href="{% url 'juego:inventario-ver' personaje.id %}">Ver Inventario Completo</a></p>
-
-    <h3>Objetos Recientes</h3>
-    {% if personaje.inventario_items.all %}
-    <ul>
-        {% for item in personaje.inventario_items.all|slice:":5" %}
-        <li>
-            {{ item.objeto.nombre }} x{{ item.cantidad }}
-            {% if item.equipado %}[Equipado]{% endif %}
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p>El inventario está vacío.</p>
-    {% endif %}
-
     <h2>Acciones</h2>
     <div class="actions">
-        <a href="{% url 'juego:personaje-editar' personaje.pk %}">Editar Personaje</a> |
-        <a href="{% url 'juego:inventario-ver' personaje.id %}">Gestionar Inventario</a> |
         <a href="{% url 'juego:combate-list' personaje.id %}">Ver Combates</a> |
         <strong><a href="{% url 'juego:combate-create' personaje.id %}">Iniciar Combate</a></strong> |
         <a href="{% url 'juego:personaje-eliminar' personaje.pk %}">Eliminar Personaje</a>
     </div>
+
+    <h2>Objetos Equipados</h2>
+    {% if objetos_equipados %}
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Objeto</th>
+                <th>Slot</th>
+                <th>Bonus</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in objetos_equipados %}
+            <tr>
+                <td>{{ item.objeto.nombre }}</td>
+                <td>{{ item.posicion_slot }}</td>
+                <td>
+                    {% if item.objeto.bonus_ataque > 0 %}Ataque +{{ item.objeto.bonus_ataque }}{% endif %}
+                    {% if item.objeto.bonus_defensa > 0 %}{% if item.objeto.bonus_ataque > 0 %}, {% endif %}Defensa +{{ item.objeto.bonus_defensa }}{% endif %}
+                    {% if item.objeto.bonus_salud > 0 %}{% if item.objeto.bonus_ataque > 0 or item.objeto.bonus_defensa > 0 %}, {% endif %}Salud +{{ item.objeto.bonus_salud }}{% endif %}
+                    {% if item.objeto.bonus_velocidad > 0 %}{% if item.objeto.bonus_ataque > 0 or item.objeto.bonus_defensa > 0 or item.objeto.bonus_salud > 0 %}, {% endif %}Velocidad +{{ item.objeto.bonus_velocidad }}{% endif %}
+                    {% if item.objeto.bonus_ataque == 0 and item.objeto.bonus_defensa == 0 and item.objeto.bonus_salud == 0 and item.objeto.bonus_velocidad == 0 %}
+                        Sin bonus de estadísticas
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No hay objetos equipados.</p>
+    {% endif %}
 
     <h2>Preferencias</h2>
     <p>Tema actual: {{ tema }}</p>

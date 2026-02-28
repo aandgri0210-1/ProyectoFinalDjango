@@ -39,21 +39,18 @@
                 <tr>
                     <td>{{ personaje.nombre }}</td>
                     <td>{{ personaje.nivel }}</td>
-                    <td>{{ personaje.exp_actual }}</td>
+                    <td>{{ personaje.exp_actual }}/{{ personaje.obtener_exp_requerida_nivel_actual.1 }} exp</td>
                     <td>{{ personaje.vida_actual }}/{{ personaje.salud_maxima }}</td>
                     <td>{{ personaje.get_estado_display }}</td>
                     <td>{{ personaje.total_items }}</td>
                     <td>
-                        <a href="{% url 'juego:personaje-detalle' personaje.pk %}">Ver</a>
-                        <a href="{% url 'juego:personaje-editar' personaje.pk %}">Editar</a>
+                        <a href="{% url 'juego:personaje-detalle' personaje.pk %}">Ver Personaje</a>
                         <a href="{% url 'juego:inventario-ver' personaje.id %}">Inventario</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    {% else %}
-        <p>No tienes personajes. <a href="{% url 'juego:personaje-crear' %}">Crea uno ahora</a></p>
     {% endif %}
 </body>
 </html>

@@ -3,33 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if form.instance.pk %}Editar{% else %}Crear{% endif %} Personaje - DungeonLedger</title>
+    <title>{% if form.instance.pk %}{% if es_editable %}Editar{% else %}Ver{% endif %}{% else %}Crear{% endif %} Personaje - DungeonLedger</title>
 </head>
 <body>
-    <h1>{% if form.instance.pk %}Editar{% else %}Crear Nuevo{% endif %} Personaje</h1>
+    <h1>{% if form.instance.pk %}{% if es_editable %}Editar{% else %}Ver{% endif %} {% else %}Crear Nuevo{% endif %} Personaje</h1>
     
-    <form method="post">
+    <form method="{% if not form.instance.pk or es_editable %}post{% else %}get{% endif %}">
         {% csrf_token %}
         
-        {% if form.errors %}
-            <div style="color: red;">
-                <strong>Errores en el formulario:</strong>
-                <ul>
-                    {% for field, errors in form.errors.items %}
-                        {% for error in errors %}
-                            <li>{{ field }}: {{ error }}</li>
-                        {% endfor %}
-                    {% endfor %}
-                </ul>
+        {% if form.non_field_errors %}
+            <div style="color: red; margin-bottom: 20px;">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
             </div>
         {% endif %}
         
         <table>
-            {{ form.as_table }}
+            {% for field in form %}
+                <tr>
+                    <td>{{ field.label_tag }}</td>
+                    <td>
+                        {{ field }}
+                        {% if field.errors %}
+                            <div style="color: red;">
+                                {% for error in field.errors %}
+                                    {{ error }}<br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
         </table>
         
-        <button type="submit">{% if form.instance.pk %}Guardar Cambios{% else %}Crear Personaje{% endif %}</button>
-        <a href="{% url 'juego:personaje-lista' %}">Cancelar</a>
+        {% if not form.instance.pk %}
+            <button type="submit">Crear Personaje</button>
+        {% elif es_editable %}
+            <button type="submit">Guardar Cambios</button>
+        {% endif %}
+        <a href="{% url 'juego:personaje-lista' %}">{% if form.instance.pk %}Volver{% else %}Cancelar{% endif %}</a>
     </form>
 </body>
 </html>

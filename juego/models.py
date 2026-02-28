@@ -30,7 +30,7 @@ class Personaje(models.Model):
 
     exp_actual = models.IntegerField(
         default=0,
-        validators=[MinValueValidator(0)]
+        validators=[MinValueValidator(0), MaxValueValidator(9999)]
     )
 
     ataque = models.IntegerField(default=10)
@@ -55,6 +55,11 @@ class Personaje(models.Model):
         unique_together = (('usuario', 'nombre'),)
         
         constraints = [
+            models.UniqueConstraint(
+                fields=['usuario'],
+                name='usuario_un_personaje',
+                condition=models.Q(estado='activo')
+            ),
             models.CheckConstraint(
                 condition=models.Q(nivel__gte=1, nivel__lte=100),
                 name='nivel_valido'
@@ -78,13 +83,62 @@ class Personaje(models.Model):
     def __str__(self):
         return f"{self.nombre} (Nivel {self.nivel})"
 
+    @staticmethod
+    def calcular_nivel_desde_exp(exp_actual):
+        """Calcula el nivel basado en la experiencia acumulada.
+        Nivel 1: 0-99 exp
+        Nivel 2: 100-199 exp
+        ...
+        Nivel 100: 9900+ exp
+        """
+        nivel = min((exp_actual // 100) + 1, 100)
+        return nivel
+
+    def obtener_exp_requerida_nivel_actual(self):
+        """Retorna (exp_minima, exp_maxima) para el nivel actual."""
+        if self.nivel >= 100:
+            return (9900, 9999)
+        exp_minima = (self.nivel - 1) * 100
+        exp_maxima = (self.nivel * 100) - 1
+        return (exp_minima, exp_maxima)
+
+    def obtener_progreso_nivel(self):
+        """Retorna el progreso (exp_actual - exp_minima) para el nivel actual."""
+        exp_minima, _ = self.obtener_exp_requerida_nivel_actual()
+        return self.exp_actual - exp_minima
+
     def clean(self):
         super().clean()
         
         if self.vida_actual > self.salud_maxima:
             raise ValidationError("Vida actual no puede exceder salud máxima")
+        
+        # Recalcular nivel basado en experiencia
+        self.nivel = self.calcular_nivel_desde_exp(self.exp_actual)
+
+    def aplicar_bonus_subida_nivel(self, niveles_ganados):
+        if niveles_ganados <= 0:
+            return
+
+        self.ataque += niveles_ganados
+        self.defensa += niveles_ganados
+        self.salud_maxima += niveles_ganados
+        self.velocidad += niveles_ganados
 
     def save(self, *args, **kwargs):
+        nivel_anterior = None
+        if self.pk:
+            nivel_anterior = Personaje.objects.filter(pk=self.pk).values_list("nivel", flat=True).first()
+
+        nivel_nuevo = self.calcular_nivel_desde_exp(self.exp_actual)
+
+        if nivel_anterior is None:
+            nivel_anterior = nivel_nuevo
+
+        niveles_ganados = max(0, nivel_nuevo - nivel_anterior)
+        self.aplicar_bonus_subida_nivel(niveles_ganados)
+
+        self.nivel = nivel_nuevo
         self.clean()
         super().save(*args, **kwargs)
 
@@ -102,8 +156,8 @@ class Personaje(models.Model):
 
     def subir_nivel(self):
         if self.nivel < 100:
-            self.nivel += 1
-            self.exp_actual = 0
+            siguiente_nivel = self.nivel + 1
+            self.exp_actual = (siguiente_nivel - 1) * 100
             self.save()
 
     def esta_vivo(self):
@@ -178,6 +232,11 @@ class Objeto(models.Model):
         validators=[MinValueValidator(0)],
     )
 
+    curacion_vida = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -212,10 +271,20 @@ class Objeto(models.Model):
             raise ValidationError({
                 'slot': 'Los objetos de tipo consumible no pueden tener slot.'
             })
+
+        if self.tipo == 'consumible' and self.curacion_vida < 0:
+            raise ValidationError({
+                'curacion_vida': 'La curación de vida no puede ser negativa.'
+            })
         
         if self.tipo == 'equipable' and not self.slot:
             raise ValidationError({
                 'slot': 'Los objetos equipables deben tener un slot asignado'
+            })
+
+        if self.tipo == 'equipable' and self.curacion_vida > 0:
+            raise ValidationError({
+                'curacion_vida': 'Solo los objetos consumibles pueden curar vida.'
             })
         
     def save(self, *args, **kwargs):

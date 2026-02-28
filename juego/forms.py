@@ -9,7 +9,6 @@ class PersonajeForm(forms.ModelForm):
         model = Personaje
         fields = [
             'nombre',
-            'nivel',
             'exp_actual',
             'ataque',
             'defensa',
@@ -19,14 +18,35 @@ class PersonajeForm(forms.ModelForm):
             'estado',
         ]
 
-    def __init__(self, *args, usuario=None, **kwargs):
+    def __init__(self, *args, usuario=None, es_editable=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.usuario = usuario
-
-        if usuario and not usuario.groups.filter(
-            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
-        ).exists():
-            self.fields.pop('estado', None)
+        self.es_editable = es_editable
+        
+        # Si es un personaje nuevo (no tiene pk), solo mostrar nombre
+        if not self.instance.pk:
+            # Crear personaje: solo nombre
+            fields_to_keep = ['nombre']
+            if usuario and usuario.groups.filter(
+                name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+            ).exists():
+                fields_to_keep.append('estado')
+            
+            # Remover todos los campos excepto nombre (y estado si es admin)
+            fields_to_remove = [f for f in self.fields.keys() if f not in fields_to_keep]
+            for field in fields_to_remove:
+                self.fields.pop(field, None)
+        else:
+            # Editar personaje: mostrar todos
+            if usuario and not usuario.groups.filter(
+                name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+            ).exists():
+                self.fields.pop('estado', None)
+                
+            # Si no es editable, hacer todos los campos disabled
+            if not es_editable:
+                for field in self.fields.values():
+                    field.disabled = True
 
     def clean_nombre(self):
         nombre = self.cleaned_data.get('nombre')
@@ -47,8 +67,14 @@ class PersonajeForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        
+        # Validación: Si es una creación nueva, verificar que no exista ya un personaje activo
+        if not self.instance.pk and self.usuario:
+            if Personaje.objects.filter(usuario=self.usuario, estado='activo').exists():
+                raise ValidationError(
+                    'Ya tienes un personaje activo. Un usuario solo puede tener un personaje activo.'
+                )
 
-        nivel = cleaned_data.get('nivel')
         exp_actual = cleaned_data.get('exp_actual')
         ataque = cleaned_data.get('ataque')
         defensa = cleaned_data.get('defensa')
@@ -56,10 +82,10 @@ class PersonajeForm(forms.ModelForm):
         vida_actual = cleaned_data.get('vida_actual')
         velocidad = cleaned_data.get('velocidad')
 
-        if nivel is not None and (nivel < 1 or nivel > 100):
-            raise ValidationError('El nivel debe estar entre 1 y 100.')
         if exp_actual is not None and exp_actual < 0:
             raise ValidationError('La EXP actual no puede ser negativa.')
+        if exp_actual is not None and exp_actual > 9999:
+            raise ValidationError('La máxima experiencia es 9999 (Nivel 100).')
 
         if ataque is not None and (ataque < 5 or ataque > 100):
             raise ValidationError('El ataque debe estar entre 5 y 100.')
@@ -75,13 +101,6 @@ class PersonajeForm(forms.ModelForm):
                 raise ValidationError('La vida actual no puede ser negativa.')
             if vida_actual > salud_maxima:
                 raise ValidationError('La vida actual no puede exceder la salud maxima.')
-
-        if nivel is not None and exp_actual is not None:
-            exp_minima = (nivel - 1) * 100
-            if exp_actual < exp_minima:
-                raise ValidationError(
-                    'La EXP actual no es coherente con el nivel indicado.'
-                )
 
         return cleaned_data
 

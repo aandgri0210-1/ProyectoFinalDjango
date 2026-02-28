@@ -33,6 +33,18 @@ class ListaPersonajesView(LoginRequiredMixin, ListView):
             )
         
         return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Verificar si el usuario es administrador
+        es_admin = self.request.user.groups.filter(
+            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
+        
+        context['es_admin'] = es_admin
+        
+        return context
 
 class CrearPersonajeView(LoginRequiredMixin, CreateView):
     model = Personaje
@@ -49,8 +61,15 @@ class CrearPersonajeView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.usuario = self.request.user
-        if form.cleaned_data.get("vida_actual") is None:
-            form.instance.vida_actual = form.cleaned_data.get("salud_maxima")
+        
+        # Asignar estadísticas base automáticamente
+        form.instance.exp_actual = 0
+        form.instance.ataque = 10
+        form.instance.defensa = 10
+        form.instance.salud_maxima = 50
+        form.instance.vida_actual = 50
+        form.instance.velocidad = 10
+        
         response = super().form_valid(form)
 
         self.request.session["ultimo_personaje_id"] = self.object.id
@@ -76,6 +95,35 @@ class DetallePersonajeView(LoginRequiredMixin, OwnerRequiredMixin, SetLastCharac
         )
         context['inventario_stats'] = stats
         
+        # Agregar información de experiencia del nivel
+        exp_minima, exp_maxima = self.object.obtener_exp_requerida_nivel_actual()
+        progreso = self.object.obtener_progreso_nivel()
+        context['exp_minima'] = exp_minima
+        context['exp_maxima'] = exp_maxima
+        context['exp_progreso'] = progreso
+        context['exp_rango_actual'] = f"{exp_minima}/{exp_maxima}"
+
+        bonus_stats = self.object.inventario_items.filter(equipado=True).aggregate(
+            bonus_ataque=Sum("objeto__bonus_ataque"),
+            bonus_defensa=Sum("objeto__bonus_defensa"),
+            bonus_salud=Sum("objeto__bonus_salud"),
+            bonus_velocidad=Sum("objeto__bonus_velocidad"),
+        )
+
+        context['bonus_ataque'] = bonus_stats.get('bonus_ataque') or 0
+        context['bonus_defensa'] = bonus_stats.get('bonus_defensa') or 0
+        context['bonus_salud'] = bonus_stats.get('bonus_salud') or 0
+        context['bonus_velocidad'] = bonus_stats.get('bonus_velocidad') or 0
+
+        context['ataque_total'] = self.object.ataque + context['bonus_ataque']
+        context['defensa_total'] = self.object.defensa + context['bonus_defensa']
+        context['salud_maxima_total'] = self.object.salud_maxima + context['bonus_salud']
+        context['velocidad_total'] = self.object.velocidad + context['bonus_velocidad']
+
+        context['objetos_equipados'] = self.object.inventario_items.filter(
+            equipado=True
+        ).select_related('objeto')
+        
         return context
 
 
@@ -90,7 +138,28 @@ class EditarPersonajeView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["usuario"] = self.request.user
+        
+        # Verificar si el usuario es administrador
+        es_admin = self.request.user.groups.filter(
+            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
+        
+        # Solo admins pueden editar
+        kwargs["es_editable"] = es_admin
+        
         return kwargs
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Verificar si el usuario es administrador
+        es_admin = self.request.user.groups.filter(
+            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
+        
+        context['es_editable'] = es_admin
+        
+        return context
 
 
 class EliminarPersonajeView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
@@ -112,14 +181,35 @@ def ver_inventario(request, personaje_id):
         "objetos_disponibles": objetos_disponibles,
     })
 
+
+@login_required
+@require_http_methods(["GET"])
+def detalle_objeto_inventario(request, personaje_id, inventario_item_id):
+    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    item = get_object_or_404(
+        Inventario.objects.select_related("objeto"),
+        id=inventario_item_id,
+        personaje=personaje,
+    )
+
+    return render(request, "inventario/objeto_detalle.html", {
+        "personaje": personaje,
+        "item": item,
+        "objeto": item.objeto,
+    })
+
 @login_required
 @require_http_methods(["POST"])
 def agregar_objeto_inventario(request, personaje_id):
     personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
     form = AddInventoryItemForm(request.POST)
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if not form.is_valid():
-        return JsonResponse({"success": False, "errors": form.errors}, status=400)
+        if is_ajax:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+        messages.error(request, "No se pudo agregar el objeto. Revisa los datos ingresados.")
+        return redirect("juego:inventario-ver", personaje_id=personaje.id)
 
     objeto = form.cleaned_data["objeto"]
     cantidad = form.cleaned_data["cantidad"]
@@ -136,7 +226,14 @@ def agregar_objeto_inventario(request, personaje_id):
         )
         inv_item.refresh_from_db()
 
-    return JsonResponse({"success": True, "cantidad": inv_item.cantidad})
+    if is_ajax:
+        return JsonResponse({"success": True, "cantidad": inv_item.cantidad})
+
+    messages.success(
+        request,
+        f"Se agregó {cantidad} x {objeto.nombre} al inventario."
+    )
+    return redirect("juego:inventario-ver", personaje_id=personaje.id)
 
 
 @login_required
@@ -144,18 +241,76 @@ def agregar_objeto_inventario(request, personaje_id):
 def usar_consumible(request, personaje_id):
     personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
     form = UseConsumableForm(request.POST, personaje=personaje)
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if not form.is_valid():
-        return JsonResponse({"success": False, "errors": form.errors}, status=400)
+        if is_ajax:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+        messages.error(request, "No se pudo usar el consumible. Revisa los datos ingresados.")
+        return redirect("juego:inventario-ver", personaje_id=personaje.id)
 
-    inv_item = Inventario.objects.get(id=form.cleaned_data["inventario_item_id"])
-    Inventario.objects.filter(id=inv_item.id).update(cantidad=F("cantidad") - 1)
-    inv_item.refresh_from_db()
+    inv_item = Inventario.objects.select_related("objeto").get(
+        id=form.cleaned_data["inventario_item_id"]
+    )
+    nombre_objeto = inv_item.objeto.nombre
+    curacion_vida = inv_item.objeto.curacion_vida
 
-    if inv_item.cantidad <= 0:
+    vida_antes = personaje.vida_actual
+    if curacion_vida > 0:
+        personaje.recuperar_vida(curacion_vida)
+    personaje.refresh_from_db()
+    vida_recuperada = max(0, personaje.vida_actual - vida_antes)
+
+    if inv_item.cantidad <= 1:
         inv_item.delete()
+    else:
+        Inventario.objects.filter(id=inv_item.id).update(cantidad=F("cantidad") - 1)
 
-    return JsonResponse({"success": True})
+    if is_ajax:
+        return JsonResponse({"success": True})
+
+    if vida_recuperada > 0:
+        messages.success(request, f"Has usado 1 x {nombre_objeto} y recuperaste {vida_recuperada} de vida.")
+    else:
+        messages.success(request, f"Has usado 1 x {nombre_objeto}.")
+    return redirect("juego:inventario-ver", personaje_id=personaje.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_equipamiento_inventario(request, personaje_id):
+    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    inventario_item_id = request.POST.get("inventario_item_id")
+    accion = request.POST.get("accion")
+
+    inv_item = get_object_or_404(
+        Inventario.objects.select_related("objeto"),
+        id=inventario_item_id,
+        personaje=personaje,
+    )
+
+    if inv_item.objeto.tipo != "equipable":
+        messages.error(request, "Solo los objetos equipables se pueden equipar o desequipar.")
+        return redirect("juego:inventario-ver", personaje_id=personaje.id)
+
+    if accion == "equipar":
+        Inventario.objects.filter(
+            personaje=personaje,
+            equipado=True,
+            posicion_slot=inv_item.objeto.slot,
+        ).exclude(id=inv_item.id).update(equipado=False, posicion_slot=None)
+
+        inv_item.equipado = True
+        inv_item.posicion_slot = inv_item.objeto.slot
+        inv_item.save()
+        messages.success(request, f"{inv_item.objeto.nombre} se ha equipado.")
+    elif accion == "desequipar":
+        inv_item.desequipar()
+        messages.success(request, f"{inv_item.objeto.nombre} se ha desequipado.")
+    else:
+        messages.error(request, "Acción no válida.")
+
+    return redirect("juego:inventario-ver", personaje_id=personaje.id)
 
 @login_required
 @require_http_methods(["POST"])
