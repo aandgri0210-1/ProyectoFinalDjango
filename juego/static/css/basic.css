@@ -11,11 +11,22 @@ body {
     line-height: 1.5;
 }
 
+body.theme-oscuro {
+    background-color: #0f172a;
+    color: #e5e7eb;
+}
+
 h1,
 h2,
 h3 {
     margin-top: 0;
     color: #111827;
+}
+
+body.theme-oscuro h1,
+body.theme-oscuro h2,
+body.theme-oscuro h3 {
+    color: #f8fafc;
 }
 
 a,
@@ -37,6 +48,18 @@ a:hover {
     text-decoration: none;
 }
 
+body.theme-oscuro a,
+body.theme-oscuro a:visited {
+    background: #1e293b;
+    border-color: #334155;
+    color: #bfdbfe;
+}
+
+body.theme-oscuro a:hover {
+    background: #334155;
+    border-color: #475569;
+}
+
 a:active {
     transform: translateY(1px);
 }
@@ -51,6 +74,11 @@ a:active {
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 18px;
+}
+
+body.theme-oscuro .top-nav {
+    background: #111827;
+    border-color: #374151;
 }
 
 .top-nav a {
@@ -68,6 +96,10 @@ table {
     margin: 16px 0;
 }
 
+body.theme-oscuro table {
+    background: #111827;
+}
+
 th,
 td {
     border: 1px solid #e5e7eb;
@@ -76,8 +108,17 @@ td {
     vertical-align: top;
 }
 
+body.theme-oscuro th,
+body.theme-oscuro td {
+    border-color: #374151;
+}
+
 th {
     background: #f3f4f6;
+}
+
+body.theme-oscuro th {
+    background: #1f2937;
 }
 
 form {
@@ -86,6 +127,11 @@ form {
     border-radius: 8px;
     padding: 16px;
     margin: 16px 0;
+}
+
+body.theme-oscuro form {
+    background: #111827;
+    border-color: #374151;
 }
 
 input,
@@ -104,6 +150,14 @@ textarea {
     border: 1px solid #d1d5db;
     border-radius: 6px;
     margin-top: 4px;
+}
+
+body.theme-oscuro input,
+body.theme-oscuro select,
+body.theme-oscuro textarea {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: #475569;
 }
 
 button {

@@ -93,7 +93,7 @@ class DetallePersonajeView(LoginRequiredMixin, OwnerRequiredMixin, SetLastCharac
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["tema"] = self.request.COOKIES.get("theme", "claro")
+        context["tema"] = self.request.COOKIES.get("theme") or self.request.COOKIES.get("tema_preferido", "claro")
         
         stats = self.object.inventario_items.aggregate(
             total_objetos=Count('id'),
@@ -543,8 +543,11 @@ def incrementar_nivel_zona(zona_id):
 
 def cambiar_tema_view(request):
     tema = request.GET.get('tema', 'claro')
+    if tema not in ['claro', 'oscuro']:
+        tema = 'claro'
     response = redirect(request.META.get('HTTP_REFERER') or reverse('juego:zona-list'))
-    response.set_cookie('tema_preferido', tema, max_age=30 * 24 * 60 * 60)
+    response.set_cookie('theme', tema, max_age=30 * 24 * 60 * 60)
+    response.delete_cookie('tema_preferido')
     return response
 
 

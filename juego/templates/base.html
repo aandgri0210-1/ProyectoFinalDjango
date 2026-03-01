@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{% static 'css/basic.css' %}">
 </head>
 
-<body>
+<body class="{% if request.COOKIES.theme == 'oscuro' or request.COOKIES.tema_preferido == 'oscuro' %}theme-oscuro{% else %}theme-claro{% endif %}">
     <nav class="top-nav">
         <a href="{% url 'juego:personaje-lista' %}">Personajes</a>
         <a href="{% url 'juego:estadisticas' %}">Estadísticas</a>
