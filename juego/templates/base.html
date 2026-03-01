@@ -25,6 +25,8 @@
         <span class="top-nav-spacer"></span>
 
         {% if user.is_authenticated %}
+        <a href="{% url 'juego:cambiar-tema' %}?tema=claro">Tema Claro</a>
+        <a href="{% url 'juego:cambiar-tema' %}?tema=oscuro">Tema Oscuro</a>
         <a href="{% url 'juego:cerrar-sesion' %}">Cerrar sesión</a>
         {% else %}
         <a href="{% url 'juego:inicio-sesion' %}">Iniciar sesión</a>
