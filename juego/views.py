@@ -15,6 +15,12 @@ from .forms import AddInventoryItemForm, CombateForm, EnemigoForm, IniciarCombat
 from .mixins import AdminRequiredMixin, OwnerRequiredMixin, SetLastCharacterMixin
 from .models import Enemigo, Inventario, Objeto, Personaje, Zona, Combate
 
+
+def inicio_redirect_view(request):
+    if request.user.is_authenticated:
+        return redirect('juego:personaje-lista')
+    return redirect('juego:inicio-sesion')
+
 class ListaPersonajesView(LoginRequiredMixin, ListView):
     model = Personaje
     template_name = "personajes/personaje_list.html"
@@ -484,7 +490,15 @@ class EnemigoDeleteView(OwnerRequiredMixin, AdminRequiredMixin, DeleteView):
         return reverse('juego:enemigo-list')
 
 
+@login_required
 def estadisticas_view(request):
+    es_admin = request.user.groups.filter(
+        name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+    ).exists() or request.user.is_staff or request.user.is_superuser
+
+    personajes_qs = Personaje.objects.all() if es_admin else Personaje.objects.filter(usuario=request.user)
+    combates_qs = Combate.objects.all() if es_admin else Combate.objects.filter(personaje__usuario=request.user)
+
     total_zonas = Zona.objects.count()
     total_enemigos = Enemigo.objects.count()
     total_jefes = Enemigo.objects.filter(tipo='jefe').count()
@@ -495,16 +509,16 @@ def estadisticas_view(request):
     )
     
     # Stats reales basadas en Combate
-    stats_combates = Combate.objects.aggregate(
+    stats_combates = combates_qs.aggregate(
         total=Count('id'),
         promedio_exp_ganada=Avg('exp_ganada'),
     )
     
     # Mejores personajes (Win Rate)
-    personajes_stats = Personaje.objects.annotate(
+    personajes_stats = personajes_qs.annotate(
         total_combates=Count('combate'),
         victorias=Count('combate', filter=Q(combate__resultado='victoria')),
-    ).order_by('-victorias')[:10]
+    ).order_by('-victorias', '-nivel', 'nombre')
 
     context = {
         'total_zonas': total_zonas,
@@ -515,6 +529,7 @@ def estadisticas_view(request):
         'total_combates': stats_combates['total'] or 0,
         'promedio_exp_ganada': stats_combates['promedio_exp_ganada'] or 0,
         'personajes_stats': personajes_stats,
+        'es_admin': es_admin,
     }
 
     return render(request, 'juego/estadisticas.html', context)
@@ -560,101 +575,6 @@ class CombateListView(LoginRequiredMixin, ListView):
         context['personaje'] = get_object_or_404(Personaje, id=personaje_id, usuario=self.request.user)
         return context
 
-import random as _random
-
-
-def _calcular_danio(ataque, defensa):
-    """Refined damage formula: (60-100% of atk) - (def//4), min 1."""
-    base_dmg = _random.randint(int(ataque * 0.6), ataque)
-    reduction = defensa // 4
-    return max(1, base_dmg - reduction)
-
-
-def _stats_efectivos(personaje):
-    """Returns effective stats including bonuses from equipped inventory items."""
-    ataque = personaje.ataque
-    defensa = personaje.defensa
-    velocidad = personaje.velocidad
-    # Robust health handling
-    base_vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
-    vida = base_vida
-    
-    arma = None
-    armadura = None
-    for inv in personaje.inventario_items.filter(equipado=True).select_related('objeto'):
-        obj = inv.objeto
-        ataque += obj.bonus_ataque
-        defensa += obj.bonus_defensa
-        velocidad += obj.bonus_velocidad
-        vida += obj.bonus_salud
-        if obj.slot == 'arma':
-            arma = obj.nombre
-        elif obj.slot == 'armadura':
-            armadura = obj.nombre
-            
-    return {
-        'ataque': ataque, 
-        'defensa': defensa, 
-        'velocidad': velocidad,
-        'vida_actual': vida, 
-        'vida_max': personaje.salud_maxima + (vida - base_vida),
-        'arma': arma, 
-        'armadura': armadura
-    }
-
-
-def _simular_combate(personaje, enemigo):
-    """
-    Simulates a turn-based combat starting with CURRENT health.
-    Returns dict with results and final health.
-    """
-    p = _stats_efectivos(personaje)
-    p_vida = p['vida_actual']
-    p_vida_max = p['vida_max']
-    e_vida = enemigo.vida_maxima
-
-    primero = p['velocidad'] >= enemigo.velocidad
-    if p['velocidad'] == enemigo.velocidad:
-        primero = _random.choice([True, False])
-
-    for ronda in range(1, 51):
-        if p_vida <= 0 or e_vida <= 0:
-            break
-
-        if primero:
-            dmg = _calcular_danio(p['ataque'], enemigo.defensa)
-            e_vida = max(0, e_vida - dmg)
-            if e_vida <= 0:
-                break
-            dmg = _calcular_danio(enemigo.ataque, p['defensa'])
-            p_vida = max(0, p_vida - dmg)
-        else:
-            dmg = _calcular_danio(enemigo.ataque, p['defensa'])
-            p_vida = max(0, p_vida - dmg)
-            if p_vida <= 0:
-                break
-            dmg = _calcular_danio(p['ataque'], enemigo.defensa)
-            e_vida = max(0, e_vida - dmg)
-
-    # Calcular la vida final
-    bonus_salud = p_vida_max - personaje.salud_maxima
-    p_vida_base_final = max(0, p_vida - bonus_salud)
-
-    if e_vida <= 0:
-        return {
-            'resultado': 'victoria', 
-            'exp_ganada': enemigo.exp_otorgada, 
-            'botin': None,
-            'p_vida_base_final': p_vida_base_final
-        }
-    else:
-        return {
-            'resultado': 'derrota', 
-            'exp_ganada': 0, 
-            'botin': None,
-            'p_vida_base_final': 0
-        }
-
 
 class CombateCreateView(LoginRequiredMixin, View):
     """
@@ -699,21 +619,8 @@ class CombateCreateView(LoginRequiredMixin, View):
             save_instance.zona = enemigo.zona
             save_instance.tipo = enemigo.tipo
 
-            if not save_instance.resultado:
-                # MODO SIMULACIÓN: El resultado se genera automáticamente
-                res = _simular_combate(personaje, enemigo)
-                save_instance.resultado = res['resultado']
-                save_instance.exp_ganada = res['exp_ganada']
-                save_instance.botin = res['botin']
-                
-                # Actualizamos las estadísticas del objeto personaje
-                personaje.vida_actual = res['p_vida_base_final']
-                personaje.exp_actual += res['exp_ganada']
-                loot_to_add = res['botin']
-            else:
-                # MODO MANUAL: Se respeta lo introducido por el usuario
-                personaje.exp_actual += save_instance.exp_ganada or 0
-                loot_to_add = save_instance.botin if save_instance.resultado == 'victoria' else None
+            personaje.exp_actual += save_instance.exp_ganada or 0
+            loot_to_add = save_instance.botin if save_instance.resultado == 'victoria' else None
 
             # Gestión de inventario si hay botín
             if loot_to_add:

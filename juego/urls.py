@@ -5,6 +5,7 @@ from . import views
 app_name = 'juego'
 
 urlpatterns = [
+    path("", views.inicio_redirect_view, name="inicio"),
     path("inicio-sesion/", views.login_view, name="inicio-sesion"),
     path("cerrar-sesion/", views.logout_view, name="cerrar-sesion"),
     path("registro/", views.register_view, name="registro"),
