@@ -133,26 +133,9 @@ class Personaje(models.Model):
         self.clean()
         super().save(*args, **kwargs)
 
-    def recibir_danio(self, cantidad):
-        self.vida_actual = max(0, self.vida_actual - cantidad)
-        self.save()
-
     def recuperar_vida(self, cantidad):
         self.vida_actual = min(self.salud_maxima, self.vida_actual + cantidad)
         self.save()
-
-    def ganar_exp(self, cantidad):
-        self.exp_actual += cantidad
-        self.save()
-
-    def subir_nivel(self):
-        if self.nivel < 100:
-            siguiente_nivel = self.nivel + 1
-            self.exp_actual = (siguiente_nivel - 1) * 100
-            self.save()
-
-    def esta_vivo(self):
-        return self.vida_actual > 0
 
 class Objeto(models.Model):
 
@@ -281,9 +264,6 @@ class Objeto(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
-        
-    def es_equipable(self):
-        return self.tipo == 'equipable'
     
 class Inventario(models.Model):
 
@@ -358,24 +338,9 @@ class Inventario(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    def equipar(self):
-        if self.objeto.tipo != 'equipable':
-            raise ValidationError('No puedes equipar un objeto consumible.')
-
-        self.equipado = True
-        self.posicion_slot = self.objeto.slot
-        self.save()
-
     def desequipar(self):
         self.equipado = False
         self.posicion_slot = None
-        self.save()
-
-    def agregar_cantidad(self, cantidad):
-        if cantidad < 1:
-            raise ValidationError('La cantidad a agregar debe ser mayor a 0.')
-
-        self.cantidad += cantidad
         self.save()
 
 
