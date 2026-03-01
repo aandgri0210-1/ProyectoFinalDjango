@@ -1,10 +1,18 @@
 # ProyectoFinalDjango
 
-Aplicación web desarrollada con Django para gestionar un juego tipo RPG con personajes, inventario, zonas, enemigos, jefes, combates por turnos y estadísticas.
+Aplicación web RPG desarrollada con Django para gestionar personajes, inventario, zonas, enemigos/jefes, combates por turnos y estadísticas, con base de datos PostgreSQL y ejecución mediante Docker.
 
-## Descripción general
+## 1) Descripción breve y funcionalidades principales
 
-El sistema permite a cada usuario crear y gestionar su personaje, administrar su inventario de objetos, combatir contra enemigos de distintas zonas y revisar estadísticas del juego. La aplicación está dockerizada y configurada para trabajar con PostgreSQL.
+El proyecto permite que cada usuario gestione su progresión dentro de un entorno de juego:
+
+- Autenticación: registro, inicio y cierre de sesión.
+- Personajes: crear, listar, ver detalle, editar/eliminar (según permisos).
+- Inventario: agregar objetos, equipar/desequipar y usar consumibles.
+- Mundo: administración de zonas, enemigos y jefes.
+- Combates: sistema por turnos con acciones (`atacar`, `huir`, `usar consumible`).
+- Estadísticas: vista personal para usuarios normales y vista global para administradores.
+- Preferencias: cambio de tema claro/oscuro mediante cookies.
 
 ## Tecnologías principales
 
@@ -12,37 +20,8 @@ El sistema permite a cada usuario crear y gestionar su personaje, administrar su
 - Django
 - PostgreSQL
 - Docker
-
-## Funcionalidades principales
-
-- Autenticación de usuarios (registro, inicio y cierre de sesión).
-- Gestión de personajes:
-  - Crear, listar, ver detalle, editar/eliminar (según permisos).
-- Gestión de inventario:
-  - Ver inventario por personaje.
-  - Agregar objetos.
-  - Equipar/desequipar.
-  - Usar consumibles.
-- Catálogo de contenido del mundo:
-  - Zonas.
-  - Enemigos.
-  - Jefes.
-- Combates:
-  - Flujo de combate por turnos.
-  - Acciones en combate (atacar, huir, usar consumible).
-  - Registro de resultados y EXP ganada.
-- Estadísticas:
-  - Vista personalizada para usuario normal.
-  - Vista global para administrador.
-
-## Estructura del proyecto
-
-- `ProyectoFinalDjango/`: configuración principal de Django.
-- `juego/`: app principal con modelos, vistas, formularios, URLs y templates.
-- `docker-compose.yml`: orquestación de servicios `web` + `db`.
-- `Dockerfile`: imagen de la aplicación Django.
-
-## Ejecución con Docker (recomendado)
+ 
+## 2) Instalación y ejecución (con Docker)
 
 1. Construir y levantar servicios:
 
@@ -56,24 +35,30 @@ El sistema permite a cada usuario crear y gestionar su personaje, administrar su
    docker compose down
    ```
 
-## Base de datos
+## 3) Credenciales de prueba / Superusuario
 
-La aplicación está preparada para PostgreSQL dentro de Docker Compose.
+### Credenciales de prueba (si existen en la base actual)
 
-URL de conexión interna (servicio `web` -> servicio `db`):
+- Usuario: `admin`
+- Contraseña: `admin`
 
-`postgresql://proyectofinaluser:proyectofinalpass@db:5432/proyectofinaldb`
+### Crear superusuario (alternativa recomendada)
 
-## Roles y permisos (resumen)
+Si no existe usuario administrador en la base de datos actual:
 
-- Usuario normal:
-  - Gestiona sus propios personajes e inventario.
-  - Ve sus estadísticas.
-- Administrador:
-  - Puede gestionar contenido global (zonas/enemigos, según configuración de permisos).
-  - Ve estadísticas globales con listado completo de personajes.
+```bash
+python manage.py createsuperuser
+```
 
-## Responsables por módulos
+Con Docker:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+## 4) Flujo de trabajo en GitHub
+
+### Organización del equipo
 
 - **Victor Chacón Cintado**:
   - Módulo de personajes.
@@ -86,3 +71,26 @@ URL de conexión interna (servicio `web` -> servicio `db`):
   - Módulo de combates.
   - Módulo de estadísticas.
   - Dockerización y despliegue local con PostgreSQL.
+
+### Flujo aplicado
+
+- Repositorio central en GitHub para integración de cambios.
+- Commits por bloques funcionales (combate, estadísticas, dockerización, estilos, navegación, etc.).
+- Integración principal en la rama `master` del repositorio actual.
+- Para siguientes iteraciones, se recomienda mantener un flujo con ramas por funcionalidad (`feature/*`) y revisión mediante Pull Request antes de merge.
+
+## 5) Mapa de trazabilidad (requisitos técnicos)
+
+| Requisito técnico | Dónde se cumple |
+|---|---|
+| Autenticación (login/registro/logout) | `juego/views.py`, `juego/urls.py`, plantillas `inicio-sesion.html` y `registro.html` |
+| Gestión de personajes | `juego/models.py` (`Personaje`), `juego/forms.py` (`PersonajeForm`), vistas y templates en `juego/templates/personajes/` |
+| Gestión de inventario y consumibles | `juego/models.py` (`Inventario`, `Objeto`), vistas de inventario en `juego/views.py`, templates en `juego/templates/inventario/` |
+| Zonas, enemigos y jefes | `juego/models.py` (`Zona`, `Enemigo`), formularios `ZonaForm` y `EnemigoForm`, vistas CRUD y templates en `juego/templates/juego/` |
+| Combate por turnos | `juego/views.py` (`CombateCreateView`, `CombateArenaView`), `juego/forms.py` (`CombateForm`), templates `combate_form.html` y `combate_arena.html` |
+| Estadísticas por rol (usuario/admin) | `juego/views.py` (`estadisticas_view`), template `juego/templates/juego/estadisticas.html` |
+| Persistencia en PostgreSQL | `ProyectoFinalDjango/settings.py` (config `DATABASES` por `POSTGRES_*`) |
+| Dockerización | `Dockerfile`, `docker-compose.yml`, `.dockerignore` |
+| Navegación y estilo global | `juego/templates/base.html`, `juego/static/css/basic.css` |
+| Tema claro/oscuro por cookies | `juego/views.py` (`fijar_tema`, `cambiar_tema_view`), `juego/templates/base.html`, `juego/static/css/basic.css` |
+
