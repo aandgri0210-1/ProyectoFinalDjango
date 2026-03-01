@@ -85,17 +85,10 @@ class Personaje(models.Model):
 
     @staticmethod
     def calcular_nivel_desde_exp(exp_actual):
-        """Calcula el nivel basado en la experiencia acumulada.
-        Nivel 1: 0-99 exp
-        Nivel 2: 100-199 exp
-        ...
-        Nivel 100: 9900+ exp
-        """
         nivel = min((exp_actual // 100) + 1, 100)
         return nivel
 
     def obtener_exp_requerida_nivel_actual(self):
-        """Retorna (exp_minima, exp_maxima) para el nivel actual."""
         if self.nivel >= 100:
             return (9900, 9999)
         exp_minima = (self.nivel - 1) * 100
@@ -103,7 +96,6 @@ class Personaje(models.Model):
         return (exp_minima, exp_maxima)
 
     def obtener_progreso_nivel(self):
-        """Retorna el progreso (exp_actual - exp_minima) para el nivel actual."""
         exp_minima, _ = self.obtener_exp_requerida_nivel_actual()
         return self.exp_actual - exp_minima
 
@@ -113,7 +105,6 @@ class Personaje(models.Model):
         if self.vida_actual > self.salud_maxima:
             raise ValidationError("Vida actual no puede exceder salud máxima")
         
-        # Recalcular nivel basado en experiencia
         self.nivel = self.calcular_nivel_desde_exp(self.exp_actual)
 
     def aplicar_bonus_subida_nivel(self, niveles_ganados):

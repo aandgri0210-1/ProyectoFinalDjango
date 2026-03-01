@@ -16,6 +16,14 @@ from .mixins import AdminRequiredMixin, OwnerRequiredMixin, SetLastCharacterMixi
 from .models import Enemigo, Inventario, Objeto, Personaje, Zona, Combate
 
 
+def _es_usuario_admin(user):
+    return user.groups.filter(
+        name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
+    ).exists() or user.is_staff or user.is_superuser
+
+def _obtener_personaje_usuario(request, personaje_id):
+    return get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+
 def inicio_redirect_view(request):
     if request.user.is_authenticated:
         return redirect('juego:personaje-lista')
@@ -42,14 +50,7 @@ class ListaPersonajesView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Verificar si el usuario es administrador
-        es_admin = self.request.user.groups.filter(
-            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
-        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
-        
-        context['es_admin'] = es_admin
-        
+        context['es_admin'] = _es_usuario_admin(self.request.user)
         return context
 
 class CrearPersonajeView(LoginRequiredMixin, CreateView):
@@ -68,7 +69,6 @@ class CrearPersonajeView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         form.instance.usuario = self.request.user
         
-        # Asignar estadísticas base automáticamente
         form.instance.exp_actual = 0
         form.instance.ataque = 10
         form.instance.defensa = 10
@@ -101,7 +101,6 @@ class DetallePersonajeView(LoginRequiredMixin, OwnerRequiredMixin, SetLastCharac
         )
         context['inventario_stats'] = stats
         
-        # Agregar información de experiencia del nivel
         exp_minima, exp_maxima = self.object.obtener_exp_requerida_nivel_actual()
         progreso = self.object.obtener_progreso_nivel()
         context['exp_minima'] = exp_minima
@@ -144,27 +143,12 @@ class EditarPersonajeView(LoginRequiredMixin, OwnerRequiredMixin, UpdateView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["usuario"] = self.request.user
-        
-        # Verificar si el usuario es administrador
-        es_admin = self.request.user.groups.filter(
-            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
-        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
-        
-        # Solo admins pueden editar
-        kwargs["es_editable"] = es_admin
-        
+        kwargs["es_editable"] = _es_usuario_admin(self.request.user)
         return kwargs
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Verificar si el usuario es administrador
-        es_admin = self.request.user.groups.filter(
-            name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
-        ).exists() or self.request.user.is_staff or self.request.user.is_superuser
-        
-        context['es_editable'] = es_admin
-        
+        context['es_editable'] = _es_usuario_admin(self.request.user)
         return context
 
 
@@ -178,7 +162,7 @@ class EliminarPersonajeView(LoginRequiredMixin, OwnerRequiredMixin, DeleteView):
 @login_required
 @require_http_methods(["GET"])
 def ver_inventario(request, personaje_id):
-    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    personaje = _obtener_personaje_usuario(request, personaje_id)
     items = personaje.inventario_items.select_related("objeto")
     objetos_disponibles = Objeto.objects.all()
     return render(request, "inventario/inventario.html", {
@@ -191,7 +175,7 @@ def ver_inventario(request, personaje_id):
 @login_required
 @require_http_methods(["GET"])
 def detalle_objeto_inventario(request, personaje_id, inventario_item_id):
-    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    personaje = _obtener_personaje_usuario(request, personaje_id)
     item = get_object_or_404(
         Inventario.objects.select_related("objeto"),
         id=inventario_item_id,
@@ -207,15 +191,14 @@ def detalle_objeto_inventario(request, personaje_id, inventario_item_id):
 @login_required
 @require_http_methods(["POST"])
 def agregar_objeto_inventario(request, personaje_id):
-    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    personaje = _obtener_personaje_usuario(request, personaje_id)
     form = AddInventoryItemForm(request.POST)
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if not form.is_valid():
-        if is_ajax:
-            return JsonResponse({"success": False, "errors": form.errors}, status=400)
-        messages.error(request, "No se pudo agregar el objeto. Revisa los datos ingresados.")
-        return redirect("juego:inventario-ver", personaje_id=personaje.id)
+        return (JsonResponse({"success": False, "errors": form.errors}, status=400) if is_ajax 
+                else (messages.error(request, "No se pudo agregar el objeto. Revisa los datos ingresados.") or 
+                      redirect("juego:inventario-ver", personaje_id=personaje.id)))
 
     objeto = form.cleaned_data["objeto"]
     cantidad = form.cleaned_data["cantidad"]
@@ -245,15 +228,14 @@ def agregar_objeto_inventario(request, personaje_id):
 @login_required
 @require_http_methods(["POST"])
 def usar_consumible(request, personaje_id):
-    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    personaje = _obtener_personaje_usuario(request, personaje_id)
     form = UseConsumableForm(request.POST, personaje=personaje)
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
 
     if not form.is_valid():
-        if is_ajax:
-            return JsonResponse({"success": False, "errors": form.errors}, status=400)
-        messages.error(request, "No se pudo usar el consumible. Revisa los datos ingresados.")
-        return redirect("juego:inventario-ver", personaje_id=personaje.id)
+        return (JsonResponse({"success": False, "errors": form.errors}, status=400) if is_ajax 
+                else (messages.error(request, "No se pudo usar el consumible. Revisa los datos ingresados.") or 
+                      redirect("juego:inventario-ver", personaje_id=personaje.id)))
 
     inv_item = Inventario.objects.select_related("objeto").get(
         id=form.cleaned_data["inventario_item_id"]
@@ -285,7 +267,7 @@ def usar_consumible(request, personaje_id):
 @login_required
 @require_http_methods(["POST"])
 def toggle_equipamiento_inventario(request, personaje_id):
-    personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+    personaje = _obtener_personaje_usuario(request, personaje_id)
     inventario_item_id = request.POST.get("inventario_item_id")
     accion = request.POST.get("accion")
 
@@ -336,6 +318,7 @@ def fijar_tema(request, personaje_id):
     return response
 
 def login_view(request):
+    error = None
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -344,13 +327,12 @@ def login_view(request):
         if user is not None:
             login(request, user)
             return redirect('juego:personaje-lista')
-        else:
-            error = 'Usuario o contraseña incorrectos'
-            return render(request, 'inicio-sesion.html', {'error': error})
+        error = 'Usuario o contraseña incorrectos'
     
-    return render(request, 'inicio-sesion.html')
+    return render(request, 'inicio-sesion.html', {'error': error})
 
 def register_view(request):
+    error = None
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -358,21 +340,16 @@ def register_view(request):
         
         if User.objects.filter(username=username).exists():
             error = 'El usuario ya existe'
-            return render(request, 'registro.html', {'error': error})
-        
-        if password != password_confirm:
+        elif password != password_confirm:
             error = 'Las contraseñas no coinciden'
-            return render(request, 'registro.html', {'error': error})
-        
-        if len(password) < 6:
+        elif len(password) < 6:
             error = 'La contraseña debe tener al menos 6 caracteres'
-            return render(request, 'registro.html', {'error': error})
-        
-        user = User.objects.create_user(username=username, password=password)
-        login(request, user)
-        return redirect('juego:personaje-lista')
+        else:
+            user = User.objects.create_user(username=username, password=password)
+            login(request, user)
+            return redirect('juego:personaje-lista')
     
-    return render(request, 'registro.html')
+    return render(request, 'registro.html', {'error': error})
 
 def logout_view(request):
     logout(request)

@@ -23,52 +23,42 @@ class PersonajeForm(forms.ModelForm):
         self.usuario = usuario
         self.es_editable = es_editable
         
-        # Si es un personaje nuevo (no tiene pk), solo mostrar nombre
         if not self.instance.pk:
-            # Crear personaje: solo nombre
             fields_to_keep = ['nombre']
             if usuario and usuario.groups.filter(
                 name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
             ).exists():
                 fields_to_keep.append('estado')
             
-            # Remover todos los campos excepto nombre (y estado si es admin)
             fields_to_remove = [f for f in self.fields.keys() if f not in fields_to_keep]
             for field in fields_to_remove:
                 self.fields.pop(field, None)
         else:
-            # Editar personaje: mostrar todos
             if usuario and not usuario.groups.filter(
                 name__in=['GAME_MASTER', 'ADMIN_CONTENIDO', 'ADMIN']
             ).exists():
                 self.fields.pop('estado', None)
                 
-            # Si no es editable, hacer todos los campos disabled
             if not es_editable:
                 for field in self.fields.values():
                     field.disabled = True
 
     def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
-        if not nombre:
-            raise ValidationError('El nombre del personaje es obligatorio.')
+        nombre = self.cleaned_data.get('nombre', '').strip()
         if len(nombre) < 3:
             raise ValidationError('El nombre debe tener al menos 3 caracteres.')
 
-        if not self.usuario:
-            return nombre
-
-        queryset = Personaje.objects.filter(usuario=self.usuario, nombre=nombre)
-        if self.instance.pk:
-            queryset = queryset.exclude(pk=self.instance.pk)
-        if queryset.exists():
-            raise ValidationError(f'Ya existe un personaje con el nombre "{nombre}".')
+        if self.usuario:
+            queryset = Personaje.objects.filter(usuario=self.usuario, nombre=nombre)
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise ValidationError(f'Ya existe un personaje con el nombre "{nombre}".')
         return nombre
 
     def clean(self):
         cleaned_data = super().clean()
         
-        # Validación: Si es una creación nueva, verificar que no exista ya un personaje activo
         if not self.instance.pk and self.usuario:
             if Personaje.objects.filter(usuario=self.usuario, estado='activo').exists():
                 raise ValidationError(
@@ -82,25 +72,18 @@ class PersonajeForm(forms.ModelForm):
         vida_actual = cleaned_data.get('vida_actual')
         velocidad = cleaned_data.get('velocidad')
 
-        if exp_actual is not None and exp_actual < 0:
-            raise ValidationError('La EXP actual no puede ser negativa.')
-        if exp_actual is not None and exp_actual > 9999:
-            raise ValidationError('La máxima experiencia es 9999 (Nivel 100).')
-
-        if ataque is not None and (ataque < 5 or ataque > 100):
+        if exp_actual is not None and not (0 <= exp_actual <= 9999):
+            raise ValidationError('La EXP actual debe estar entre 0 y 9999.')
+        if ataque is not None and not (5 <= ataque <= 100):
             raise ValidationError('El ataque debe estar entre 5 y 100.')
-        if defensa is not None and (defensa < 5 or defensa > 100):
+        if defensa is not None and not (5 <= defensa <= 100):
             raise ValidationError('La defensa debe estar entre 5 y 100.')
-        if salud_maxima is not None and (salud_maxima < 10 or salud_maxima > 500):
+        if salud_maxima is not None and not (10 <= salud_maxima <= 500):
             raise ValidationError('La salud maxima debe estar entre 10 y 500.')
-        if velocidad is not None and (velocidad < 1 or velocidad > 100):
+        if velocidad is not None and not (1 <= velocidad <= 100):
             raise ValidationError('La velocidad debe estar entre 1 y 100.')
-
-        if vida_actual is not None and salud_maxima is not None:
-            if vida_actual < 0:
-                raise ValidationError('La vida actual no puede ser negativa.')
-            if vida_actual > salud_maxima:
-                raise ValidationError('La vida actual no puede exceder la salud maxima.')
+        if vida_actual is not None and (vida_actual < 0 or (salud_maxima and vida_actual > salud_maxima)):
+            raise ValidationError('La vida actual debe estar entre 0 y la salud maxima.')
 
         return cleaned_data
 
@@ -114,12 +97,6 @@ class AddInventoryItemForm(forms.Form):
         min_value=1,
         initial=1,
     )
-
-    def clean_cantidad(self):
-        cantidad = self.cleaned_data.get('cantidad')
-        if cantidad is None or cantidad < 1:
-            raise ValidationError('La cantidad debe ser al menos 1.')
-        return cantidad
 
 
 class UseConsumableForm(forms.Form):
@@ -135,18 +112,14 @@ class UseConsumableForm(forms.Form):
             raise ValidationError('El objeto no es valido.')
 
         try:
-            inv_item = Inventario.objects.select_related('objeto').get(
-                id=inventario_item_id
-            )
+            inv_item = Inventario.objects.select_related('objeto').get(id=inventario_item_id)
         except Inventario.DoesNotExist:
             raise ValidationError('El objeto no existe en el inventario.')
 
         if self.personaje and inv_item.personaje_id != self.personaje.id:
             raise ValidationError('Este objeto no pertenece a tu personaje.')
-        if inv_item.objeto.tipo != 'consumible':
-            raise ValidationError('Solo puedes usar objetos consumibles.')
-        if inv_item.cantidad < 1:
-            raise ValidationError('No tienes unidades disponibles de este objeto.')
+        if inv_item.objeto.tipo != 'consumible' or inv_item.cantidad < 1:
+            raise ValidationError('Solo puedes usar objetos consumibles con unidades disponibles.')
 
         return inventario_item_id
 
