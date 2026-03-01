@@ -1,13 +1,9 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Personajes - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Mis Personajes - DungeonLedger{% endblock %}
+
+{% block content %}
+
     <div style="text-align: right; margin-bottom: 20px;">
         <p>Bienvenido, <strong>{{ user.username }}</strong></p>
         <a href="{% url 'juego:cerrar-sesion' %}">Cerrar sesión</a>
@@ -54,5 +50,4 @@
             </tbody>
         </table>
     {% endif %}
-</body>
-</html>
+{% endblock %}

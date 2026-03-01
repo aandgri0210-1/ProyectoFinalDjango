@@ -1,15 +1,9 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ personaje.nombre }} - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
+{% block title %}{{ personaje.nombre }} - DungeonLedger{% endblock %}
 
-<body>
+{% block content %}
+
     <h1>{{ personaje.nombre }} (Nivel {{ personaje.nivel }}: {{ personaje.exp_actual }}/{{ exp_maxima }} exp)</h1>
 
     <p><a href="{% url 'juego:personaje-lista' %}">Volver a la lista</a></p>
@@ -52,6 +46,7 @@
 
     <h2>Acciones</h2>
     <div class="actions">
+        <a href="{% url 'juego:inventario-ver' personaje.id %}">Inventario</a> |
         <a href="{% url 'juego:combate-list' personaje.id %}">Ver Combates</a> |
         <strong><a href="{% url 'juego:combate-create' personaje.id %}">Iniciar Combate</a></strong> |
         <a href="{% url 'juego:personaje-eliminar' personaje.pk %}">Eliminar Personaje</a>
@@ -99,6 +94,4 @@
         {% csrf_token %}
         <button type="submit">Tema Oscuro</button>
     </form>
-</body>
-
-</html>
+{% endblock %}

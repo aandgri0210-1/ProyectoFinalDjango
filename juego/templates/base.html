@@ -10,6 +10,28 @@
 </head>
 
 <body>
+    <nav class="top-nav">
+        <a href="{% url 'juego:personaje-lista' %}">Personajes</a>
+        <a href="{% url 'juego:estadisticas' %}">Estadísticas</a>
+        <a href="{% url 'juego:zona-list' %}">Zonas</a>
+        <a href="{% url 'juego:enemigo-list' %}">Enemigos</a>
+
+        {% if personaje %}
+        <a href="{% url 'juego:personaje-detalle' personaje.id %}">Detalle</a>
+        <a href="{% url 'juego:inventario-ver' personaje.id %}">Inventario</a>
+        <a href="{% url 'juego:combate-list' personaje.id %}">Combates</a>
+        {% endif %}
+
+        <span class="top-nav-spacer"></span>
+
+        {% if user.is_authenticated %}
+        <a href="{% url 'juego:cerrar-sesion' %}">Cerrar sesión</a>
+        {% else %}
+        <a href="{% url 'juego:inicio-sesion' %}">Iniciar sesión</a>
+        <a href="{% url 'juego:registro' %}">Registro</a>
+        {% endif %}
+    </nav>
+
     <h1>DungeonLedger: Top-Down Chronicles</h1>
 
     {% if messages %}

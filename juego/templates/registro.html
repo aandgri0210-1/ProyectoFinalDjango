@@ -1,13 +1,8 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Registro - DungeonLedger{% endblock %}
+
+{% block content %}
     <h1>Crear Nueva Cuenta</h1>
     
     {% if error %}
@@ -41,5 +36,4 @@
         ¿Ya tienes cuenta?
         <a href="{% url 'juego:inicio-sesion' %}">Inicia sesión aquí</a>
     </p>
-</body>
-</html>
+{% endblock %}

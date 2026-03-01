@@ -35,4 +35,5 @@ urlpatterns = [
     path('cambiar-tema/', views.cambiar_tema_view, name='cambiar-tema'),
     path('personajes/<int:personaje_id>/combates/', views.CombateListView.as_view(), name='combate-list'),
     path('personajes/<int:personaje_id>/combates/crear/', views.CombateCreateView.as_view(), name='combate-create'),
+    path('personajes/<int:personaje_id>/combates/arena/', views.CombateArenaView.as_view(), name='combate-arena'),
 ]

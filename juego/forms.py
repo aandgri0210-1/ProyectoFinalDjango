@@ -292,14 +292,11 @@ class EnemigoSelectWidget(forms.Select):
         return option
 
 class CombateForm(forms.ModelForm):
-    resultado = forms.ChoiceField(choices=Combate.RESULTADO_CHOICES, required=False, widget=forms.Select(attrs={'class': 'form-control'}))
-    exp_ganada = forms.IntegerField(required=False, min_value=0, widget=forms.NumberInput(attrs={'class': 'form-control'}))
-    botin = forms.ModelChoiceField(queryset=Objeto.objects.all(), required=False, widget=forms.Select(attrs={'class': 'form-control'}))
     enemigo = forms.ModelChoiceField(queryset=Enemigo.objects.all(), widget=EnemigoSelectWidget(attrs={'class': 'form-control'}))
 
     class Meta:
         model = Combate
-        fields = ['enemigo', 'zona', 'resultado', 'exp_ganada', 'botin']
+        fields = ['zona', 'enemigo']
         widgets = {
             'enemigo': forms.Select(attrs={'class': 'form-control'}),
             'zona': forms.Select(attrs={'class': 'form-control'}),
@@ -307,25 +304,17 @@ class CombateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Quitado lógica de personaje_fijo y queryset de personaje
-        # ya que el personaje se gestiona directamente en la vista.
-        
+        self.fields['zona'].queryset = Zona.objects.filter(activa=True).order_by('nivel', 'nombre')
+        self.fields['zona'].empty_label = '— Selecciona una zona —'
+        self.fields['enemigo'].queryset = Enemigo.objects.filter(activo=True).select_related('zona').order_by('zona__nivel', 'zona__nombre', 'nombre')
+
     def clean(self):
         cleaned_data = super().clean()
+        zona = cleaned_data.get('zona')
         enemigo = cleaned_data.get('enemigo')
-        resultado = cleaned_data.get('resultado')
-        exp_ganada = cleaned_data.get('exp_ganada')
-        
-        if enemigo and enemigo.tipo == 'jefe':
-            if resultado == 'huida':
-                raise ValidationError('No puedes huir de un combate contra un jefe.')
-                
-        if exp_ganada is not None and exp_ganada < 0:
-            raise ValidationError('La EXP ganada no puede ser negativa.')
-            
-        if enemigo and exp_ganada is None:
-            # Autocalculamos si no la puso
-            cleaned_data['exp_ganada'] = enemigo.exp_otorgada if resultado == 'victoria' else 0
+
+        if zona and enemigo and enemigo.zona_id != zona.id:
+            raise ValidationError('El enemigo seleccionado no pertenece a la zona elegida.')
             
         return cleaned_data
 

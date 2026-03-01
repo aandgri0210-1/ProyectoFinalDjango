@@ -1,13 +1,8 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Iniciar Sesión - DungeonLedger{% endblock %}
+
+{% block content %}
     <h1>Iniciar Sesión</h1>
     
     {% if error %}
@@ -36,5 +31,4 @@
         ¿No tienes cuenta?
         <a href="{% url 'juego:registro' %}">Crear cuenta aquí</a>
     </p>
-</body>
-</html>
+{% endblock %}

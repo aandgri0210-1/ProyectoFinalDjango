@@ -575,13 +575,55 @@ class CombateListView(LoginRequiredMixin, ListView):
         context['personaje'] = get_object_or_404(Personaje, id=personaje_id, usuario=self.request.user)
         return context
 
+import random as _random
+
+
+def _calcular_danio(ataque, defensa):
+    """Refined damage formula: (60-100% of atk) - (def//4), min 1."""
+    base_dmg = _random.randint(int(ataque * 0.6), ataque)
+    reduction = defensa // 4
+    return max(1, base_dmg - reduction)
+
+
+def _combate_state_key(personaje_id):
+    return f'combate_turnos_{personaje_id}'
+
+
+def _stats_efectivos(personaje):
+    """Returns effective stats including bonuses from equipped inventory items."""
+    ataque = personaje.ataque
+    defensa = personaje.defensa
+    velocidad = personaje.velocidad
+    # Robust health handling
+    base_vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
+    vida = base_vida
+    
+    arma = None
+    armadura = None
+    for inv in personaje.inventario_items.filter(equipado=True).select_related('objeto'):
+        obj = inv.objeto
+        ataque += obj.bonus_ataque
+        defensa += obj.bonus_defensa
+        velocidad += obj.bonus_velocidad
+        vida += obj.bonus_salud
+        if obj.slot == 'arma':
+            arma = obj.nombre
+        elif obj.slot == 'armadura':
+            armadura = obj.nombre
+            
+    return {
+        'ataque': ataque, 
+        'defensa': defensa, 
+        'velocidad': velocidad,
+        'vida_actual': vida, 
+        'vida_max': personaje.salud_maxima + (vida - base_vida),
+        'arma': arma, 
+        'armadura': armadura
+    }
+
 
 class CombateCreateView(LoginRequiredMixin, View):
-    """
-    Unified view to select enemy and run combat in one step.
-    GET  → Show zone/enemy selection.
-    POST → Run combat and save result.
-    """
+    """Prepara un combate por turnos seleccionando zona y enemigo."""
 
     def get(self, request, personaje_id):
         personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
@@ -599,9 +641,7 @@ class CombateCreateView(LoginRequiredMixin, View):
         })
 
     def post(self, request, personaje_id):
-        personaje = get_object_or_404(Personaje, id=personaje_id)
-        if personaje.usuario != request.user:
-            raise PermissionDenied("Este personaje no te pertenece.")
+        personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
 
         vida = personaje.vida_actual if personaje.vida_actual is not None else personaje.salud_maxima
         
@@ -611,42 +651,216 @@ class CombateCreateView(LoginRequiredMixin, View):
 
         form = CombateForm(request.POST)
         if form.is_valid():
-            save_instance = form.save(commit=False)
-            save_instance.personaje = personaje
-            
-            # Automatización: Forzar Zona y Tipo desde el Enemigo seleccionado para evitar inconsistencias
-            enemigo = save_instance.enemigo
-            save_instance.zona = enemigo.zona
-            save_instance.tipo = enemigo.tipo
+            enemigo = form.cleaned_data['enemigo']
+            stats = _stats_efectivos(personaje)
+            personaje_inicia = stats['velocidad'] >= enemigo.velocidad
+            if stats['velocidad'] == enemigo.velocidad:
+                personaje_inicia = _random.choice([True, False])
 
-            personaje.exp_actual += save_instance.exp_ganada or 0
-            loot_to_add = save_instance.botin if save_instance.resultado == 'victoria' else None
+            state = {
+                'personaje_id': personaje.id,
+                'enemigo_id': enemigo.id,
+                'personaje_nombre': personaje.nombre,
+                'enemigo_nombre': enemigo.nombre,
+                'zona_nombre': enemigo.zona.nombre,
+                'es_jefe': enemigo.tipo == 'jefe',
+                'personaje_vida': stats['vida_actual'],
+                'personaje_vida_max': stats['vida_max'],
+                'personaje_ataque': stats['ataque'],
+                'personaje_defensa': stats['defensa'],
+                'enemigo_vida': enemigo.vida_maxima,
+                'enemigo_vida_max': enemigo.vida_maxima,
+                'enemigo_ataque': enemigo.ataque,
+                'enemigo_defensa': enemigo.defensa,
+                'enemigo_exp': enemigo.exp_otorgada,
+                'turno': 'personaje' if personaje_inicia else 'enemigo',
+                'log': [
+                    f"Comienza el combate contra {enemigo.nombre}.",
+                    f"Turno inicial: {'Personaje' if personaje_inicia else 'Enemigo'}."
+                ],
+            }
 
-            # Gestión de inventario si hay botín
-            if loot_to_add:
-                inv_item, created = Inventario.objects.get_or_create(
-                    personaje=personaje,
-                    objeto=loot_to_add,
-                    defaults={'cantidad': 1}
-                )
-                if not created:
-                    Inventario.objects.filter(id=inv_item.id).update(cantidad=F('cantidad') + 1)
-
-            # Guardamos Combate y Actualizamos Personaje
-            save_instance.save()
-            personaje.save()
-            
-            personaje.refresh_from_db()
-            if personaje.exp_actual >= personaje.nivel * 100:
-                personaje.subir_nivel()
-
-            return render(request, 'juego/combate_arena.html', {
-                'personaje': personaje,
-                'combate': save_instance,
-            })
+            request.session[_combate_state_key(personaje.id)] = state
+            request.session.modified = True
+            return redirect('juego:combate-arena', personaje_id=personaje.id)
 
         return render(request, 'juego/combate_form.html', {
             'form': form, 'personaje': personaje,
         })
+
+
+class CombateArenaView(LoginRequiredMixin, View):
+    def _get_consumibles_curacion(self, personaje):
+        return personaje.inventario_items.filter(
+            objeto__tipo='consumible',
+            objeto__curacion_vida__gt=0,
+            cantidad__gt=0,
+        ).select_related('objeto').order_by('objeto__nombre')
+
+    def _get_state(self, request, personaje):
+        key = _combate_state_key(personaje.id)
+        state = request.session.get(key)
+        if not state:
+            return None
+        if state.get('personaje_id') != personaje.id:
+            return None
+        return state
+
+    def _save_state(self, request, personaje, state):
+        request.session[_combate_state_key(personaje.id)] = state
+        request.session.modified = True
+
+    def _clear_state(self, request, personaje):
+        key = _combate_state_key(personaje.id)
+        if key in request.session:
+            del request.session[key]
+            request.session.modified = True
+
+    def _finalizar_combate(self, request, personaje, state, resultado, exp_ganada=0):
+        enemigo = get_object_or_404(Enemigo, id=state['enemigo_id'])
+
+        bonus_salud = max(0, state['personaje_vida_max'] - personaje.salud_maxima)
+        vida_base_final = max(0, state['personaje_vida'] - bonus_salud)
+        personaje.vida_actual = min(personaje.salud_maxima, vida_base_final)
+        if exp_ganada > 0:
+            personaje.exp_actual += exp_ganada
+        personaje.save()
+
+        combate = Combate.objects.create(
+            personaje=personaje,
+            enemigo=enemigo,
+            zona=enemigo.zona,
+            tipo=enemigo.tipo,
+            resultado=resultado,
+            exp_ganada=exp_ganada,
+            botin=None,
+        )
+
+        self._clear_state(request, personaje)
+        return combate
+
+    def get(self, request, personaje_id):
+        personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+        state = self._get_state(request, personaje)
+        if not state:
+            messages.info(request, 'Primero debes iniciar un combate.')
+            return redirect('juego:combate-create', personaje_id=personaje.id)
+
+        consumibles = self._get_consumibles_curacion(personaje)
+
+        if state['turno'] == 'enemigo' and state['personaje_vida'] > 0 and state['enemigo_vida'] > 0:
+            danio = _calcular_danio(state['enemigo_ataque'], state['personaje_defensa'])
+            state['personaje_vida'] = max(0, state['personaje_vida'] - danio)
+            state['log'].append(f"{state['enemigo_nombre']} ataca y hace {danio} de daño.")
+            if state['personaje_vida'] <= 0:
+                combate = self._finalizar_combate(request, personaje, state, 'derrota', 0)
+                return render(request, 'juego/combate_arena.html', {
+                    'personaje': personaje,
+                    'estado': state,
+                    'combate_finalizado': True,
+                    'combate': combate,
+                    'consumibles': consumibles,
+                })
+            state['turno'] = 'personaje'
+            self._save_state(request, personaje, state)
+
+        return render(request, 'juego/combate_arena.html', {
+            'personaje': personaje,
+            'estado': state,
+            'combate_finalizado': False,
+            'consumibles': consumibles,
+        })
+
+    def post(self, request, personaje_id):
+        personaje = get_object_or_404(Personaje, id=personaje_id, usuario=request.user)
+        state = self._get_state(request, personaje)
+        if not state:
+            messages.info(request, 'No hay combate activo. Inicia uno nuevo.')
+            return redirect('juego:combate-create', personaje_id=personaje.id)
+
+        accion = request.POST.get('accion')
+
+        if state['turno'] != 'personaje':
+            return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+        if accion == 'huir':
+            if state['es_jefe']:
+                state['log'].append('No puedes huir de un jefe.')
+                self._save_state(request, personaje, state)
+                return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+            combate = self._finalizar_combate(request, personaje, state, 'huida', 0)
+            return render(request, 'juego/combate_arena.html', {
+                'personaje': personaje,
+                'estado': state,
+                'combate_finalizado': True,
+                'combate': combate,
+            })
+
+        if accion == 'usar_consumible':
+            inventario_item_id = request.POST.get('inventario_item_id')
+            if not inventario_item_id:
+                state['log'].append('Debes seleccionar un consumible.')
+                self._save_state(request, personaje, state)
+                return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+            try:
+                inv_item = Inventario.objects.select_related('objeto').get(
+                    id=inventario_item_id,
+                    personaje=personaje,
+                    objeto__tipo='consumible',
+                )
+            except Inventario.DoesNotExist:
+                state['log'].append('Consumible inválido para este personaje.')
+                self._save_state(request, personaje, state)
+                return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+            curacion = inv_item.objeto.curacion_vida or 0
+            if curacion <= 0:
+                state['log'].append('Ese consumible no cura vida.')
+                self._save_state(request, personaje, state)
+                return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+            if state['personaje_vida'] >= state['personaje_vida_max']:
+                state['log'].append('Ya tienes la vida al máximo.')
+                self._save_state(request, personaje, state)
+                return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+            vida_antes = state['personaje_vida']
+            state['personaje_vida'] = min(state['personaje_vida_max'], state['personaje_vida'] + curacion)
+            vida_recuperada = state['personaje_vida'] - vida_antes
+
+            if inv_item.cantidad <= 1:
+                inv_item.delete()
+            else:
+                Inventario.objects.filter(id=inv_item.id).update(cantidad=F('cantidad') - 1)
+
+            state['log'].append(
+                f"{personaje.nombre} usa {inv_item.objeto.nombre} y recupera {vida_recuperada} de vida."
+            )
+            state['turno'] = 'enemigo'
+            self._save_state(request, personaje, state)
+            return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+        if accion != 'atacar':
+            messages.error(request, 'Acción no válida.')
+            return redirect('juego:combate-arena', personaje_id=personaje.id)
+
+        danio = _calcular_danio(state['personaje_ataque'], state['enemigo_defensa'])
+        state['enemigo_vida'] = max(0, state['enemigo_vida'] - danio)
+        state['log'].append(f"{personaje.nombre} ataca y hace {danio} de daño.")
+
+        if state['enemigo_vida'] <= 0:
+            combate = self._finalizar_combate(request, personaje, state, 'victoria', state['enemigo_exp'])
+            return render(request, 'juego/combate_arena.html', {
+                'personaje': personaje,
+                'estado': state,
+                'combate_finalizado': True,
+                'combate': combate,
+            })
+
+        state['turno'] = 'enemigo'
+        self._save_state(request, personaje, state)
+        return redirect('juego:combate-arena', personaje_id=personaje.id)
 
 

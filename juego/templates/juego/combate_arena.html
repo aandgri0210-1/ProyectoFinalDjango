@@ -1,20 +1,68 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2>
-    {% if combate.resultado == 'victoria' %}¡Victoria!{% else %}Derrota{% endif %}
-    — {{ personaje.nombre }} vs {{ combate.enemigo.nombre }}
-</h2>
+<h2>Arena de Combate — {{ personaje.nombre }} vs {{ estado.enemigo_nombre }}</h2>
 
-{% if combate.resultado == 'victoria' %}
-<div class="alert alert-success">
-    +{{ combate.exp_ganada }} EXP
-    {% if combate.botin %}
-    <br>Has conseguido: <strong>{{ combate.botin.nombre }}</strong>!
-    {% endif %}
+<p><strong>Zona:</strong> {{ estado.zona_nombre }}</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>{{ personaje.nombre }}</h3>
+        <p><strong>Vida:</strong> {{ estado.personaje_vida }} / {{ estado.personaje_vida_max }}</p>
+    </div>
+    <div class="col-md-6">
+        <h3>{{ estado.enemigo_nombre }}</h3>
+        <p><strong>Vida:</strong> {{ estado.enemigo_vida }} / {{ estado.enemigo_vida_max }}</p>
+    </div>
 </div>
+
+{% if combate_finalizado %}
+    {% if combate.resultado == 'victoria' %}
+    <div class="alert alert-success">
+        <strong>¡Victoria!</strong> Has ganado {{ combate.exp_ganada }} EXP.
+    </div>
+    {% elif combate.resultado == 'huida' %}
+    <div class="alert alert-warning">
+        <strong>Has huido del combate.</strong>
+    </div>
+    {% else %}
+    <div class="alert alert-danger">
+        <strong>Derrota.</strong> {{ personaje.nombre }} ha caído en combate.
+    </div>
+    {% endif %}
 {% else %}
-<div class="alert alert-danger">{{ personaje.nombre }} fue derrotado.</div>
+    <div class="alert alert-info">
+        Turno actual: <strong>{% if estado.turno == 'personaje' %}{{ personaje.nombre }}{% else %}{{ estado.enemigo_nombre }}{% endif %}</strong>
+    </div>
+
+    {% if estado.turno == 'personaje' %}
+    <form method="post" class="actions">
+        {% csrf_token %}
+        <button type="submit" name="accion" value="atacar">Atacar</button>
+        <button type="submit" name="accion" value="huir">Huir</button>
+
+        {% if consumibles %}
+        <select name="inventario_item_id">
+            <option value="">Selecciona consumible</option>
+            {% for item in consumibles %}
+            <option value="{{ item.id }}">
+                {{ item.objeto.nombre }} (+{{ item.objeto.curacion_vida }} vida) x{{ item.cantidad }}
+            </option>
+            {% endfor %}
+        </select>
+        <button type="submit" name="accion" value="usar_consumible">Usar consumible</button>
+        {% endif %}
+    </form>
+    {% endif %}
 {% endif %}
+
+<h3>Registro de Turnos</h3>
+<ul>
+    {% for entrada in estado.log %}
+    <li>{{ entrada }}</li>
+    {% empty %}
+    <li>Sin movimientos aún.</li>
+    {% endfor %}
+</ul>
 
 <a href="{% url 'juego:combate-create' personaje.id %}" class="btn btn-danger">Nuevo combate</a>
 <a href="{% url 'juego:combate-list' personaje.id %}" class="btn btn-secondary">Historial</a>

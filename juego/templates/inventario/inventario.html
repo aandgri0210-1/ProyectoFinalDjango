@@ -1,13 +1,9 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventario de {{ personaje.nombre }} - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Inventario de {{ personaje.nombre }} - DungeonLedger{% endblock %}
+
+{% block content %}
+
     <h1>Inventario de {{ personaje.nombre }}</h1>
 
     {% if messages %}
@@ -95,6 +91,5 @@
     {% else %}
         <p>El inventario está vacío.</p>
     {% endif %}
-    
-</body>
-</html>
+
+{% endblock %}

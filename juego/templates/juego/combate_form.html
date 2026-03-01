@@ -7,9 +7,8 @@
         </div>
         <div class="card-body">
             <p class="text-muted mb-4 small">
-                Utiliza este formulario para registrar los detalles de un encuentro.
-                <strong>Nota:</strong> Si dejas los campos de resultados vacíos, el sistema simulará la batalla
-                automáticamente.
+                Selecciona zona y enemigo para iniciar una batalla por turnos.
+                El resultado se definirá dentro de la arena de combate.
             </p>
 
             <form method="post">
@@ -55,39 +54,20 @@
                         </div>
                     </div>
 
-                    <!-- Resultados del Combate -->
+                    <!-- Inicio del Combate -->
                     <div class="col-md-6 px-4">
-                        <h5 class="mb-3 text-secondary">Resultados del Combate (Manual)</h5>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{{ form.resultado.label }}</label>
-                            {{ form.resultado }}
-                            {% for e in form.resultado.errors %}
-                            <div class="text-danger small">{{ e }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{{ form.exp_ganada.label }}</label>
-                            {{ form.exp_ganada }}
-                            {% for e in form.exp_ganada.errors %}
-                            <div class="text-danger small">{{ e }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">{{ form.botin.label }}</label>
-                            {{ form.botin }}
-                            {% for e in form.botin.errors %}
-                            <div class="text-danger small">{{ e }}</div>
-                            {% endfor %}
-                        </div>
+                        <h5 class="mb-3 text-secondary">Cómo funciona</h5>
+                        <ul>
+                            <li>Tu personaje y el enemigo atacan por turnos.</li>
+                            <li>En tu turno podrás <strong>Atacar</strong> o <strong>Huir</strong>.</li>
+                            <li>Si el enemigo es jefe, no podrás huir.</li>
+                        </ul>
                     </div>
                 </div>
 
                 <div class="mt-4 pt-3 border-top d-flex justify-content-between">
                     <button type="submit" class="btn btn-danger px-4">
-                        ¡Iniciar / Guardar Combate!
+                        Iniciar Combate por Turnos
                     </button>
                     <a href="{% url 'juego:combate-list' personaje.id %}" class="btn btn-outline-secondary">
                         Cancelar y volver

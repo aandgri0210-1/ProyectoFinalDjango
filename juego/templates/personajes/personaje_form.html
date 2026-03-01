@@ -1,13 +1,9 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if form.instance.pk %}{% if es_editable %}Editar{% else %}Ver{% endif %}{% else %}Crear{% endif %} Personaje - DungeonLedger</title>
-    <link rel="stylesheet" href="{% static 'css/basic.css' %}">
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}{% if es_editable %}Editar{% else %}Ver{% endif %}{% else %}Crear{% endif %} Personaje - DungeonLedger{% endblock %}
+
+{% block content %}
+
     <h1>{% if form.instance.pk %}{% if es_editable %}Editar{% else %}Ver{% endif %} {% else %}Crear Nuevo{% endif %} Personaje</h1>
     
     <form method="{% if not form.instance.pk or es_editable %}post{% else %}get{% endif %}">
@@ -46,5 +42,4 @@
         {% endif %}
         <a href="{% url 'juego:personaje-lista' %}">{% if form.instance.pk %}Volver{% else %}Cancelar{% endif %}</a>
     </form>
-</body>
-</html>
+{% endblock %}
